@@ -1,0 +1,137 @@
+
+SPADE.RIVM version : 4.1.38 (packaged on 2024-02-29)
+Data used          : RC24_LT_c_or  (version )
+
+f.spade:
+   Making a model for  riboflavin  from  RC24_LT_c_or both 6 - 12 ...
+    - only intake amount modelling
+
+Number of observations per person
+
+There are no zeros in the sample
+
+Number of persons available for estimation of
+ the between and within person variances seems to be O.K. : 54 
+
+
+
+======  Info data and model f.spade  ======
+
+
+======================================== 
+=====  Extra info about the data   ===== 
+========================================
+
+Number of observations per age
+   ((explanation of first column:
+    6  is age
+    52 is number of observations for age 6 in sample
+    10.66 is proportion(%) for age 6 in sample))
+       6     7     8     9     10    11    12   
+nobs 52    71    83    65    71    93    53   
+%    10.66 14.55 17.01 13.32 14.55 19.06 10.86
+                                              
+
+Intake amounts are modelled with all positive intakes
+ For 1 - part model:
+   if there are some zeros,
+   these get all a positive value equal to 0.5 * min(positive values)
+ For 2 - part model:
+   all positive amounts are used
+
+
+
+======== Results modelling intake amounts ========
+
+Fit of Box-Cox transformation parameter lambda
+
+
+==== Fractional Polynomial model results intake amounts ===
+
+Call:
+glm(formula = intake.trans ~ I((age/10)^1), data = spade.dt.ia)
+
+Coefficients:
+                Estimate Std. Error  t value   Pr(>|t|)    
+(Intercept)   -0.6458377  0.1425922 -4.52927 7.4561e-06 ***
+I((age/10)^1)  0.3487724  0.1538619  2.26679   0.023842 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for gaussian family taken to be 0.4148755)
+
+    Null deviance: 203.76128  on 487  degrees of freedom
+Residual deviance: 201.62951  on 486  degrees of freedom
+AIC: 959.54886
+
+Number of Fisher Scoring iterations: 2
+
+===========================================================
+
+Model results for the intake amounts
+Linear mixed model fit by REML ['lmerMod']
+Formula: intake.trans ~ I((age/10)^1) + (1 | id)
+   Data: spade.dt.ia
+Weights: spade.dt.ia[, weights.name]
+
+REML criterion at convergence: 956.3
+
+Scaled residuals: 
+       Min         1Q     Median         3Q        Max 
+-3.3774174 -0.5151778  0.0203882  0.5593292  2.9903445 
+
+Random effects:
+ Groups   Name        Variance  Std.Dev. 
+ id       (Intercept) 0.1061466 0.3258014
+ Residual             0.3081578 0.5551196
+Number of obs: 488, groups:  id, 434
+
+Fixed effects:
+                Estimate Std. Error  t value
+(Intercept)   -0.6423729  0.1459870 -4.40021
+I((age/10)^1)  0.3471619  0.1575195  2.20393
+
+Correlation of Fixed Effects:
+            (Intr)
+I((g/10)^1) -0.979
+f.spade: Model saved in spade_RC24_LT_c_or_riboflavin_b_6_12_model 
+
+f.spade: start f.spade.pseudo.sampling
+model.name = spade_RC24_LT_c_or_riboflavin_b_6_12_model 
+f.spade.pseudo.sampling:
+   pseudo sample spade.ps has 43400 rows
+
+
+f.spade: f.spade.backtrans2 started for back-transformation
+
+ 
+================================================== 
+=====             Model results              ===== 
+================================================== 
+   Model for intake amount   : riboflavin ~ fp(age)[1] TRUE
+
+   within-individual variance  = 0.308 
+   between-individual variance = 0.106 
+   ratio var.inner/var.between for intake amounts = 2.9
+ 
+* * *  Statistics of observed and habitual intakes  * * * 
+                             (weighted) sample mean intake = 0.893 
+                          overall mean of habitual intakes = 0.887 
+    difference of mean HI mean from (weighted) sample mean = -0.56 %
+
+spade output table for  riboflavin
+
+Confidence intervals: check first the plots and logbooks, 
+                      next use f.spade.bootstrap.
+
+===================================================================== 
+   The SPADE output is saved in 
+   C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/SPADE_CO/f.spade
+ 
+   -  Diagnostic plots       can be found in    1_plots 
+   -  Log files              can be found in    2_logbooks 
+   -  Excel output tables    can be found in    3_excel_tables 
+
+   -  The model and table R-binaries in   4_r_binaries 
+      are saved for experts in R 
+=====================================================================

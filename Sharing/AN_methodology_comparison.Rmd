@@ -1,0 +1,2638 @@
+---
+title: "AN_M2_or_v2"
+output: html_document
+date: "2024-07-18"
+---
+
+This code is for the comparison of methods 1-6. 
+
+Method 1. Cut point method - one day 
+Method 2. Probability of Adequacy method - one day 
+Method 3. NutriR method - one day 
+Method 4. Cut point method - usual intake
+Method 5. Probability of Adequacy method - usual intake
+Method 6. NutriR method - usual intake
+
+
+Setup: 
+1. load libraries 
+2. data files
+3. structure of files (e.g naming headers)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, results = 'hide')
+
+#1. Load libraries
+
+library(openxlsx)
+library(dplyr)
+library(tidyverse)
+library(haven)
+library(ggpubr)
+library(ggplot2)
+library(tableone)
+library(writexl)
+library(readxl)
+library(purrr)
+library(stringr)
+library(tidyr)
+library(cowplot)
+library(writexl)
+library(broom)
+library(readxl)
+library(e1071)
+
+# Set the working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+
+# Load the Excel/sav file
+
+RC24_v3_Food <- read.xlsx("A1_dietary intake_ID_day_food.xlsx", sheet=1)
+RC24_v3 <- read.xlsx("B1_dietary intake_ID_day.xlsx", sheet = 1)
+Dem_all <- read.xlsx("C1_dem_SES.xlsx", sheet=1)
+NS_WHO <- read_sav("D1_output_WHO_anthro.sav")
+
+
+#rename variables
+names(RC24_v3)
+names(RC24_v3) <- tolower(names(RC24_v3)) #all lower case
+
+#rename p_id (NECESSARY)
+names(RC24_v3)[1] <- "id"
+names(RC24_v3)[2] <- "mealday"
+names(RC24_v3)[3] <- "number_foods"
+names(RC24_v3)[4] <- "foodscore"
+names(RC24_v3)[5] <- "kcal"
+names(RC24_v3)[6] <- "protein"
+names(RC24_v3)[7] <- "fat"
+names(RC24_v3)[8] <- "cho" #AMDR only
+names(RC24_v3)[9] <- "fibre" #unsure what recommendation to use 
+names(RC24_v3)[10] <- "water"
+names(RC24_v3)[11] <- "alcohol"
+names(RC24_v3)[12] <- "calcium"
+names(RC24_v3)[13] <- "iron"
+names(RC24_v3)[14] <- "zinc"
+names(RC24_v3)[15] <- "retinol"
+names(RC24_v3)[16] <- "b.carotene"
+names(RC24_v3)[17] <- "thiamin"
+names(RC24_v3)[18] <- "riboflavin"
+names(RC24_v3)[24] <- "niacin"
+names(RC24_v3)[19] <- "vitb6"
+names(RC24_v3)[23] <- "folate"
+names(RC24_v3)[20] <- "vitb12"
+names(RC24_v3)[22] <- "vitc"
+names(RC24_v3)[21] <- "vitd"
+names(RC24_v3)[25] <- "a.carotene"
+
+RC24_v3 <-  RC24_v3 %>%
+  mutate (rae = (retinol) + (b.carotene/12) + (a.carotene/24) )
+
+names(RC24_v3_Food)[1] <- "id"
+names(RC24_v3_Food)[2] <- "mealday"
+names(RC24_v3_Food)[14] <- "protein"
+names(RC24_v3_Food)[15] <- "fat"
+names(RC24_v3_Food)[16] <- "cho" #AMDR only
+names(RC24_v3_Food)[17] <- "fibre" #unsure what recommendation to use 
+names(RC24_v3_Food)[18] <- "water"
+names(RC24_v3_Food)[19] <- "alcohol"
+names(RC24_v3_Food)[20] <- "calcium"
+names(RC24_v3_Food)[21] <- "iron"
+names(RC24_v3_Food)[22] <- "zinc"
+names(RC24_v3_Food)[23] <- "retinol"
+names(RC24_v3_Food)[24] <- "b.carotene"
+names(RC24_v3_Food)[25] <- "thiamin"
+names(RC24_v3_Food)[26] <- "riboflavin"
+names(RC24_v3_Food)[32] <- "niacin"
+names(RC24_v3_Food)[27] <- "vitb6"
+names(RC24_v3_Food)[31] <- "folate"
+names(RC24_v3_Food)[28] <- "vitb12"
+names(RC24_v3_Food)[30] <- "vitc"
+names(RC24_v3_Food)[29] <- "vitd"
+names(RC24_v3_Food)[33] <- "a.carotene"
+names(RC24_v3_Food)[34] <- "ignorerae"
+
+RC24_v3_Food <-  RC24_v3_Food %>%
+  mutate (rae = (retinol) + (b.carotene/12) + (a.carotene/24) )
+
+names(Dem_all)[1] <- "id"
+names(Dem_all)[2] <- "date"
+names(Dem_all)[3]<- "city"
+names(Dem_all)[4]<- "district"
+names(Dem_all)[5]<- "participant_type"
+names(Dem_all)[6]<- "mothers_age"
+names(Dem_all)[7]<- "ethnicity"
+names(Dem_all)[8]<- "other_ethnicity"
+names(Dem_all)[9]<- "school_education"
+names(Dem_all)[10]<- "other_school_education"
+names(Dem_all)[11] <- "occupation"
+names(Dem_all)[12]<- "other_occupation"
+names(Dem_all)[13] <- "marital_status"
+names(Dem_all)[14]<- "dependent_children_HH"
+names(Dem_all)[15] <- "living_situation"
+names(Dem_all)[16] <- "other_living_situation"
+names(Dem_all)[17] <- "people_living_HH"
+names(Dem_all)[18]<- "HH_type"
+names(Dem_all)[19]<- "other_HH_type"
+names(Dem_all)[20]<- "household_exp"
+names(Dem_all)[21]<- "sex"
+names(Dem_all)[22]<- "age"
+names(Dem_all)[23]<- "weight"
+names(Dem_all)[24]<- "height"
+names(Dem_all)[25]<- "muac"
+names(Dem_all)[26]<- "weight_fixed"
+names(Dem_all)[27]<- "height_fixed"
+names(Dem_all)[28]<- "bmi"
+
+Dem_all$city[Dem_all$city == "ABENGOUROU"] <- 1
+Dem_all$city[Dem_all$city== "ABIDJAN (YOPOUGON)"] <- 2
+Dem_all$city[Dem_all$city == "BOUAKE"] <- 3
+Dem_all$city[Dem_all$city == "DALOA"] <- 4
+
+Dem_all$school_education[Dem_all$school_education == "Autre (à préciser)"] <- 2
+Dem_all$school_education[Dem_all$school_education == "Non scolarisé"] <- 1
+Dem_all$school_education[Dem_all$school_education == "Primaire"] <- 2
+Dem_all$school_education[Dem_all$school_education == "Secondaire"] <- 3
+Dem_all$school_education[Dem_all$school_education == "Supérieur"] <- 4
+
+Dem_all$occupation[Dem_all$occupation == "Autre (à préciser)"] <- 2
+Dem_all$occupation[Dem_all$occupation == "Etudiant/élève"] <- 1
+Dem_all$occupation[Dem_all$occupation == "Ménagère"] <- 3
+Dem_all$occupation[Dem_all$occupation == "Salarié"] <- 3
+Dem_all$occupation[Dem_all$occupation == "Sans emploi"] <- 1    
+Dem_all$occupation[Dem_all$occupation == "Secteur informel"] <- 2
+
+Dem_all$marital_status[Dem_all$marital_status == "Célibataire"] <- 1 #single
+Dem_all$marital_status[Dem_all$marital_status == "Concubinage"] <- 2 #partnership
+Dem_all$marital_status[Dem_all$marital_status == "Mariée"] <- 3 #married
+Dem_all$marital_status[Dem_all$marital_status == "Séparée / Divorcée"] <- 4 #seperated/divorced
+Dem_all$marital_status[Dem_all$marital_status == "Veuve"] <- 5 #widow
+
+Dem_all$living_situation[Dem_all$living_situation == "Appartement"] <- 2 #apartment
+Dem_all$living_situation[Dem_all$living_situation == "Autre (à préciser)"] <- 1 #other
+Dem_all$living_situation[Dem_all$living_situation == "Baraque"] <- 1 #shack
+Dem_all$living_situation[Dem_all$living_situation == "Cours commune"] <- 1 #common commune
+Dem_all$living_situation[Dem_all$living_situation == "Villa"] <- 3 #villa
+
+Dem_all$HH_type[Dem_all$HH_type == "Autre (à préciser)"] <- 1 #other
+Dem_all$HH_type[Dem_all$HH_type == "Monogame"] <- 2 #monogomy
+Dem_all$HH_type[Dem_all$HH_type == "Polygame"] <- 3 #polygamy
+
+Dem_all$household_exp[Dem_all$household_exp == "Moins de 1000 Fr"] <- 1   
+Dem_all$household_exp[Dem_all$household_exp == "Entre 1000 Fr inclus & 2000 Fr"] <- 1
+Dem_all$household_exp[Dem_all$household_exp == "Entre 2000 Fr  inclus & 3000 Fr"] <- 2
+Dem_all$household_exp[Dem_all$household_exp == "Entre 3000 Fr  inclus & 4000 Fr"] <- 2
+Dem_all$household_exp[Dem_all$household_exp == "Entre 4000 Fr inclus & 5000 Fr"] <- 3
+Dem_all$household_exp[Dem_all$household_exp == "Plus de 5000 Fr"] <- 3   
+
+Dem_all$ethnicity[Dem_all$ethnicity == "Akan"] <- 1   
+Dem_all$ethnicity[Dem_all$ethnicity == "Autres(à préciser)"] <- 2
+Dem_all$ethnicity[Dem_all$ethnicity == "Gour"] <- 3
+Dem_all$ethnicity[Dem_all$ethnicity == "Krou"] <- 4
+Dem_all$ethnicity[Dem_all$ethnicity == "Mande du nord"] <- 5
+Dem_all$ethnicity[Dem_all$ethnicity == "Mande du sud"] <- 6 
+Dem_all$ethnicity[Dem_all$ethnicity == "Non ivoirien"] <- 7 
+
+RC24_v3_Food$mealday[RC24_v3_Food$mealday == "44197"] <- 1   
+RC24_v3_Food$mealday[RC24_v3_Food$mealday == "44229"] <- 2  
+
+RC24_v3_Food$Mealtime[RC24_v3_Food$Mealtime == "Breakfast"] <- 1 
+RC24_v3_Food$Mealtime[RC24_v3_Food$Mealtime == "Mid_morning_snack"] <- 2 
+RC24_v3_Food$Mealtime[RC24_v3_Food$Mealtime == "Lunch"] <- 3 
+RC24_v3_Food$Mealtime[RC24_v3_Food$Mealtime == "Afternoon_snack"] <- 4 
+RC24_v3_Food$Mealtime[RC24_v3_Food$Mealtime == "Dinner/supper"] <- 5 
+
+Dem_all$dependent_children_HH <- as.numeric(as.character(Dem_all$dependent_children_HH))
+is.numeric(Dem_all$dependent_children_HH)
+class(Dem_all$dependent_children_HH)
+
+Dem_all$sex[Dem_all$sex == "Féminin"] <-2
+Dem_all$sex[Dem_all$sex == "Masculin"] <-1
+
+#seperating dem (SAC and WRA)
+
+Dem_c <- Dem_all %>%
+  filter(substr(id,1,1) == "i")
+names(Dem_c)[1] <- "id"
+
+Dem_a <- Dem_all %>%
+  filter(substr(id,1,1) == "a")
+
+#seperating COMPLEAT output (SAC and WRA)
+
+RC24_v3_a <-  RC24_v3 %>%
+  filter(substr(id,1,1) == "a")
+
+RC24_v3_c <-  RC24_v3 %>%
+  filter(substr(id,1,1) == "i")
+
+RC24_v3_Food_c <- RC24_v3_Food %>% #RC24_v3_Food_v2 can be changed
+  filter(substr(id,1,1) == "i")
+
+RC24_v3_Food_a <- RC24_v3_Food %>% #RC24_v3_Food_v2 can be changed
+  filter(substr(id,1,1) == "a")
+
+RC24_v3_Food_a$id <- as.numeric(sub("^a_", "", RC24_v3_Food_a$id))
+RC24_v3_Food_c$id <- as.numeric(sub("^i_", "", RC24_v3_Food_c$id))
+
+
+#merge 24HR and Dem
+RC24_Dem_c_na <- merge(x=RC24_v3_c, y=Dem_c, by="id") #not aggregrated n=499
+RC24_Dem_a_na <- merge(x=RC24_v3_a, y=Dem_a, by="id") #not aggregrated n=493
+
+
+#make numeric
+as.numeric(RC24_Dem_c_na$age)
+is.numeric(RC24_Dem_c_na$age)
+
+as.numeric(Dem_c$age)
+is.numeric(Dem_c$age)
+
+#grouped_by_age
+
+RC24_Dem_c_na["age_group"] = cut(RC24_Dem_c_na$age, c(0,6,10,12), c("6", "7-10", "11-12"),include.lowest=TRUE)
+#RC24_Dem_c["age_group"] = cut(RC24_Dem_c$age, c(0,10,12), c("6-10", "11-12"),include.lowest=TRUE)
+Dem_c["age_group"] = cut(Dem_c$age, c(0,6,10,12), c("6", "7-10", "11-12"),include.lowest=TRUE)
+
+names(NS_WHO)
+
+names(NS_WHO)[2] <- "sex"
+
+##select a few columns
+NS_WHO <- NS_WHO %>%
+  dplyr::select(id, thin = 48, underweight = 55, stunted = 53, overwt = 50, obese = 51, normal = 64)
+
+#children >= 5 yo wasting = thinness = BAZ <-2SD
+#children <5 yo wasting = wt/ht <-2SD
+
+sum(!is.na(RC24_Dem_c_na)) #nonNA in entitre dataset
+colSums(!is.na(RC24_Dem_c_na)) #nonNA in columns
+RC24_Dem_c_na %>%                #by group 
+  group_by(age) %>%
+  summarise(total_non_na = sum(!is.na(kcal)))
+
+
+```
+
+Setting up SPADE
+
+```{r SPADE set up}
+
+#1-part model #f.spade
+#load DNFCS.manual
+
+##need data in SPADE structure 
+##RC24_v3_Dem_c_na
+##RC24_v3_Dem_a_na
+
+RC24_Dem_c_na$id <- as.numeric(sub("^i_", "", RC24_Dem_c_na$id))
+
+names(RC24_Dem_c_na)[names(RC24_Dem_c_na) == "mealday"] <- "mDay"
+RC24_Dem_c_na$mDay <- ifelse(RC24_Dem_c_na$mDay == 44197, 1, 2)
+
+# Reorder columns to make mDay the second column
+RC24_LT_c <- RC24_Dem_c_na %>% dplyr::select(id, mDay, sex, age, kcal, protein, fat, cho, fibre, calcium, iron, zinc, thiamin, riboflavin, vitb6, vitb12, vitd, vitc, folate, niacin, rae)
+
+#variables in lower case and check 
+names(RC24_LT_c)
+names(RC24_LT_c) <- tolower(names(RC24_LT_c)) #all lower case
+
+#load requirements
+EAR.men <- read.xlsx(paste0("C:/Users/AylinK01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/SPADE/Datasets/EAR_male.xlsx"), sheet=1)
+names(EAR.men)[1] <- "age"
+
+EAR.women <- read.xlsx(paste0("C:/Users/AylinK01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/SPADE/Datasets/EAR_female.xlsx"), sheet=1)
+names(EAR.women)[1] <- "age"
+
+
+#install.packages(SPADE.RIVM)
+#install.packages("gamlss")
+#install.packages("lme4")
+#install.packages("MASS")
+#install.packages("mfp")
+#install.packages("purrr")
+#install.packages("rpart")
+#install.packages("rpart.plot")
+#install.packages("openxlsx")
+#install.packages("survival")
+#install.packages("C:/Users/AylinK01/OneDrive - FrieslandCampina/Admin/SPADE.RIVM_4.1.38.zip",repos = NULL, type = "win.binary")
+
+#open packages 1st
+
+#library(sas7bdat)
+library(openxlsx)
+library(gamlss)
+library(lme4)
+library(MASS)
+library(survival)
+library(mfp)
+library(purrr)
+library(rpart)
+library(rpart.plot)
+library(SPADE.RIVM)
+```
+nutriR set up
+
+```{r NutriR set up}
+#step-up NutriR
+
+# Load and install necessary packages
+#install.packages("htmltools")
+required_packages <- c("tidyverse", "nutriR", "fitdistrplus", "openxlsx", "devtools")
+
+for (package in required_packages) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+# Reinstall nutriR from GitHub
+devtools::install_github("cfree14/nutriR", force = TRUE, build_vignettes = TRUE)
+
+# Load required packages
+required_packages <- c("dplyr", "ggplot2", "tidyr", "readr", "stringr", "lubridate", "nutriR")
+lapply(required_packages, library, character.only = TRUE)
+
+```
+Removal of outliers based on criterea +- 2.58 sd (code not included)
+code below is using dataset with outliers removed. 
+
+Method 1: EAR cut point
+
+Formula: 
+Prevalence of Inadequacy= ∑ ((intake (i) <EAR) / total population
+
+
+```{r Method 1: SAC 1 day EAR CO, echo=FALSE, results='hide', warning=FALSE, message=FALSE} 
+
+
+#1. all nutrients SAC with age/sex 
+
+# Load required packages
+required_packages <- c("dplyr", "ggplot2", "tidyr", "readr", "stringr", "lubridate", "nutriR", "e1071", "readxl", "openxlsx")
+lapply(required_packages, library, character.only = TRUE)
+
+
+# Set the working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+getwd()
+
+# Load the Excel/sav file
+
+# Define file paths
+oneday_file_path <- "filtered_data_without_kcal_outliersSAC.xlsx"
+
+ear_male_file_path <- read.xlsx("EAR_male.xlsx", sheet=1)
+
+ear_female_file_path <- read.xlsx("EAR_female.xlsx", sheet=1)
+
+output_directory_path <- "oneday_CO"
+
+# Load datasets
+RC24_LT_c_or <- read_excel(oneday_file_path)
+
+# Filter for unique IDs and mDay == 1
+oneday <- RC24_LT_c_or %>%
+  filter(mDay == 1)
+
+# Ensure age_group is a factor with specified levels
+oneday <- oneday %>%
+  mutate(age_group = factor(age_group, levels = c("6", "7-10", "11-12")))
+
+# Read EAR values
+EAR_men <- read.xlsx("EAR_male.xlsx", sheet = 1)
+EAR_women <- read.xlsx("EAR_female.xlsx", sheet = 1)
+names(EAR_men)[1] <- "age"
+names(EAR_women)[1] <- "age"
+
+# Capitalize first letter of each column name
+capitalize <- function(x) {
+  paste0(toupper(substr(x, 1, 1)), substr(x, 2, nchar(x)))
+}
+
+EAR_men <- EAR_men %>%
+  rename_all(capitalize)
+
+EAR_women <- EAR_women %>%
+  rename_all(capitalize)
+
+# Merge EAR values with oneday data for both genders
+oneday_males <- merge(oneday, EAR_men, by.x = "age", by.y = "Age")
+oneday_females <- merge(oneday, EAR_men, by.x = "age", by.y = "Age")
+
+# Select relevant columns and unify both dataframes
+relevant_columns <- c("id", "age_group", "age", "sex", "weight", "height", 
+                      "calcium", "Calcium", "iron", "Iron", "zinc", "Zinc", 
+                      "rae", "Rae", "vitb12", "Vitb12", "vitc", "Vitc", 
+                      "thiamin", "Thiamin", "riboflavin", "Riboflavin", 
+                      "niacin", "Niacin", "vitb6", "Vitb6", "folate", "Folate")
+
+oneday_males <- oneday_males[, relevant_columns]
+oneday_females <- oneday_females[, relevant_columns]
+oneday <- bind_rows(oneday_males, oneday_females)
+
+# Function to calculate EAR prevalence
+calculate_ear_prevalence <- function(data, nutrient) {
+  # Create a column indicating whether intake is inadequate
+  data <- data %>%
+    mutate(inadequate = ifelse(!!sym(nutrient) < !!sym(capitalize(nutrient)), 1, 0))
+  
+  # Calculate the percentage of individuals with inadequate intake by age group
+  stats_by_age_group <- data %>%
+    group_by(age_group) %>%
+    summarise(
+      Nutrient = nutrient,
+      EAR.p = sum(inadequate, na.rm = TRUE) / n() * 100
+    )
+  
+  # Calculate the total percentage of individuals with inadequate intake regardless of age group
+  total_stats <- data %>%
+    summarise(
+      Nutrient = nutrient,
+      age_group = "6-12_w",
+      EAR.p = sum(inadequate, na.rm = TRUE) / n() * 100
+    )
+  
+  # Combine individual age groups with total
+  stats <- bind_rows(stats_by_age_group, total_stats)
+  
+  return(stats)
+}
+
+# List of nutrients to calculate
+nutrients <- c("calcium", "iron", "zinc", "thiamin", "riboflavin", 
+               "vitb6", "vitb12", "vitc", "folate", "niacin", "rae")
+
+# Create an empty list to store results
+ear_prevalence_list <- list()
+
+# Loop through each nutrient and calculate EAR prevalence
+for (nutrient in nutrients) {
+  ear_prevalence_stats <- calculate_ear_prevalence(oneday, nutrient)
+  ear_prevalence_list[[nutrient]] <- ear_prevalence_stats
+}
+
+# Combine results into one data frame
+ear_prevalence_stats <- do.call(rbind, ear_prevalence_list)
+
+# Ensure the Nutrient column is first
+ear_prevalence_stats <- ear_prevalence_stats %>%
+  dplyr::select(Nutrient, everything())
+
+# Print the table
+print(ear_prevalence_stats)
+
+# Save the combined summary to an Excel file
+write.xlsx(ear_prevalence_stats, file.path(output_directory_path, "EAR_Prevalence_by_Age_Group.xlsx"))
+
+# Function to calculate nutrient statistics
+calculate_statistics <- function(data, nutrient, age_group_col = "age_group") {
+  stats <- data %>%
+    group_by( Nutrient = nutrient, !!sym(age_group_col),) %>%
+    summarise(
+      Mean = mean(!!sym(nutrient), na.rm = TRUE),
+      SD = sd(!!sym(nutrient), na.rm = TRUE),
+      EAR = first(!!sym(capitalize(nutrient))),
+      Mean_EAR = Mean / ifelse(EAR == 0, NA, EAR),
+      P10 = quantile(!!sym(nutrient), 0.10, na.rm = TRUE),
+      P25 = quantile(!!sym(nutrient), 0.25, na.rm = TRUE),
+      P50 = quantile(!!sym(nutrient), 0.50, na.rm = TRUE),
+      P75 = quantile(!!sym(nutrient), 0.75, na.rm = TRUE),
+      P90 = quantile(!!sym(nutrient), 0.90, na.rm = TRUE),
+      Skewness = e1071::skewness(na.omit(!!sym(nutrient))),
+      CV = (SD / Mean) * 100
+    )
+  
+  return(stats)
+}
+
+# Calculate statistics for combined age group 6-12 years
+calculate_combined_statistics <- function(data, nutrient) {
+  stats <- data %>%
+    summarise(
+      Nutrient = nutrient,
+      Mean = mean(!!sym(nutrient), na.rm = TRUE),
+      SD = sd(!!sym(nutrient), na.rm = TRUE),
+      P10 = quantile(!!sym(nutrient), 0.10, na.rm = TRUE),
+      P25 = quantile(!!sym(nutrient), 0.25, na.rm = TRUE),
+      P50 = quantile(!!sym(nutrient), 0.50, na.rm = TRUE),
+      P75 = quantile(!!sym(nutrient), 0.75, na.rm = TRUE),
+      P90 = quantile(!!sym(nutrient), 0.90, na.rm = TRUE),
+      Skewness = e1071::skewness(na.omit(!!sym(nutrient))),
+      CV = (SD / Mean) * 100
+    ) %>%
+    mutate(age_group = "6-12_w")
+  
+  return(stats)
+}
+
+# Create an empty list to store results
+nutrient_stats_list <- list()
+combined_nutrient_stats_list <- list()
+
+# Loop through each nutrient and calculate statistics
+for (nutrient in nutrients) {
+  nutrient_stats <- calculate_statistics(oneday, nutrient, "age_group")
+  combined_nutrient_stats <- calculate_combined_statistics(oneday, nutrient)
+  nutrient_stats_list[[nutrient]] <- nutrient_stats
+  combined_nutrient_stats_list[[nutrient]] <- combined_nutrient_stats
+}
+
+# Combine individual and combined statistics into one data frame
+nutrient_stats <- do.call(rbind, nutrient_stats_list)
+combined_nutrient_stats <- do.call(rbind, combined_nutrient_stats_list)
+
+# Combine all statistics
+all_nutrient_stats <- bind_rows(nutrient_stats, combined_nutrient_stats)
+
+# Print final results
+print("Final Results:")
+print(all_nutrient_stats)
+
+# Save results if needed
+write.xlsx(all_nutrient_stats, file.path(output_directory_path, "Nutrient_Statistics_by_Age_Group.xlsx"))
+
+
+```
+Nb. iron 11-12 yo group sev does not take into account female.EAR (which is slightly lower than male)
+
+Method 2: Probability of Adequacy 
+
+Calculate the z-score:
+
+z-score (i) = intake (i) − EAR / SD of EAR
+
+ 
+Calculate the probability of adequacy (PA):
+
+PA= pnorm(z-score)
+
+
+```{r Method 2: SAC 1 day PA z-score first, echo=FALSE, results='hide', warning=FALSE, message=FALSE} 
+
+# Load required packages
+required_packages <- c("dplyr", "readxl", "openxlsx")
+lapply(required_packages, library, character.only = TRUE)
+
+# Set your working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+
+# Define file paths
+oneday_file_path <- "filtered_data_without_kcal_outliersSAC.xlsx"
+
+ear_male_file_path <- read.xlsx("EAR_male.xlsx", sheet=1)
+
+ear_female_file_path <- read.xlsx("EAR_female.xlsx", sheet=1)
+
+output_directory_path <- "oneday_PA"
+
+
+# Load datasets
+RC24_LT_c_or <- read_excel(oneday_file_path)
+
+# Filter for unique IDs and mDay == 1
+oneday <- RC24_LT_c_or %>%
+  filter(mDay == 1)
+
+# Ensure age_group is a factor with specified levels
+oneday <- oneday %>%
+  mutate(age_group = factor(age_group, levels = c("6", "7-10", "11-12")))
+
+# Read EAR values
+EAR_men <- read.xlsx("EAR_male.xlsx", sheet = 1)
+EAR_women <- read.xlsx("EAR_female.xlsx", sheet = 1)
+names(EAR_men)[1] <- "age"
+names(EAR_women)[1] <- "age"
+
+# Capitalize first letter of each column name
+capitalize <- function(x) {
+  paste0(toupper(substr(x, 1, 1)), substr(x, 2, nchar(x)))
+}
+
+EAR_men <- EAR_men %>%
+  rename_all(capitalize)
+
+EAR_women <- EAR_women %>%
+  rename_all(capitalize) 
+
+# Merge EAR values with oneday data for both genders
+oneday_males <- merge(oneday, EAR_men, by.x = "age", by.y = "Age")
+oneday_females <- merge(oneday, EAR_women, by.x = "age", by.y = "Age")
+
+# Select relevant columns and unify both dataframes
+relevant_columns <- c("id", "age_group", "age", "sex", "weight", "height", 
+                      "calcium", "Calcium", "iron", "Iron", "zinc", "Zinc", 
+                      "rae", "Rae", "vitb12", "Vitb12", "vitc", "Vitc", 
+                      "thiamin", "Thiamin", "riboflavin", "Riboflavin", 
+                      "niacin", "Niacin", "vitb6", "Vitb6", "folate", "Folate")
+
+oneday_males <- oneday_males[, relevant_columns]
+oneday_females <- oneday_females[, relevant_columns]
+oneday <- bind_rows(oneday_males, oneday_females)
+
+# Function to calculate PI
+calculate_pi <- function(data, nutrient) {
+  # Define the coefficient of variation for the nutrient requirements
+  cv <- ifelse(nutrient %in% c("niacin", "folate", "rae"), 0.15, 0.10)
+  
+  # Calculate the standard deviation of the nutrient requirements
+  data <- data %>%
+    mutate(sd_requirement = !!sym(capitalize(nutrient)) * cv)
+  
+  # Calculate the z-score for each individual
+  data <- data %>%
+    mutate(z_score = ( !!sym(nutrient) - !!sym(capitalize(nutrient)) ) / sd_requirement) ##nutrient capitlaised in EAR
+  
+  # Calculate the probability of adequacy for each individual
+  data <- data %>%
+    mutate(PA = pnorm(z_score))
+  
+  # Calculate the probability of inadequacy (1 - PA) for each individual
+  data <- data %>%
+    mutate(PI = (1 - PA) * 100)
+  
+  # Calculate the average PI by age group
+  stats_by_age_group <- data %>%
+    group_by(age_group) %>%
+    summarise(
+      Nutrient = nutrient,
+      PI = mean(PI, na.rm = TRUE)
+    )
+  
+  # Calculate the total average PI regardless of age group
+  total_stats <- data %>%
+    summarise(
+      Nutrient = nutrient,
+      age_group = "6-12",
+      PI = mean(PI, na.rm = TRUE)
+    )
+  
+  # Combine individual age groups with total
+  stats <- bind_rows(stats_by_age_group, total_stats)
+  
+  return(stats)
+}
+
+# List of nutrients to calculate
+nutrients <- c("calcium", "iron", "zinc", "thiamin", "riboflavin", 
+               "vitb6", "vitb12", "vitc", "folate", "niacin", "rae")
+
+# Create an empty list to store results
+pi_list <- list()
+
+# Loop through each nutrient and calculate PI
+for (nutrient in nutrients) {
+  pi_stats <- calculate_pi(oneday, nutrient)
+  pi_list[[nutrient]] <- pi_stats
+}
+
+# Combine results into one data frame
+pi_stats <- do.call(rbind, pi_list)
+
+# Ensure the Nutrient column is first
+pi_stats <- pi_stats %>%
+  dplyr::select(Nutrient, everything())
+
+# Print the table
+print(pi_stats)
+
+# Calculate the weighted average PI for the new age group "6-12_w"
+n_6 <- 49
+n_7_10 <- 263
+n_11_12 <- 130
+
+weighted_pi_stats <- pi_stats %>%
+  filter(age_group %in% c("6", "7-10", "11-12")) %>%
+  group_by(Nutrient) %>%
+  summarise(
+    PI_6 = sum(PI[age_group == "6"]),
+    PI_7_10 = sum(PI[age_group == "7-10"]),
+    PI_11_12 = sum(PI[age_group == "11-12"]),
+    weighted_PI = (n_6 * PI_6 + n_7_10 * PI_7_10 + n_11_12 * PI_11_12) / (n_6 + n_7_10 + n_11_12)
+  ) %>%
+  mutate(age_group = "6-12_w") %>%
+  dplyr::select(Nutrient, weighted_PI, age_group) %>%
+  rename(PI = weighted_PI)
+
+# Combine the weighted results with the original results
+pi_stats <- bind_rows(pi_stats, weighted_pi_stats)
+
+# Save the updated results to an Excel file
+write.xlsx(pi_stats, file.path(output_directory_path, "PI_by_Age_Group.xlsx"))
+
+# Print final results
+print("Final Results with Weighted Averages:")
+print(pi_stats)
+
+
+```
+
+Nb. iron 11-12 yo group sev does not take into account female.EAR (which is slightly lower than male)
+
+
+Method 3: nutriR
+
+
+```{r Method 3: SAC 1 day NutriR, echo=FALSE, results='hide', warning=FALSE, message=FALSE} 
+
+
+#1. all nutrients SAC with age/sex 
+
+# Load required packages
+required_packages <- c("dplyr", "ggplot2", "tidyr", "readr", "stringr", "lubridate", "nutriR", "fitdistrplus", "openxlsx", "MASS")
+lapply(required_packages, library, character.only = TRUE)
+
+
+# Set your working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+
+# Define file paths
+oneday_file_path <- "filtered_data_without_kcal_outliersSAC.xlsx"
+
+ear_male_file_path <- read.xlsx("EAR_male.xlsx", sheet=1)
+
+ear_female_file_path <- read.xlsx("EAR_female.xlsx", sheet=1)
+
+output_directory_path <- "oneday_NutriR"
+
+# Load datasets
+RC24_LT_c_or <- read_excel(oneday_file_path)
+
+# Filter for unique IDs and mDay == 1
+oneday <- RC24_LT_c_or %>%
+  filter(mDay == 1)
+
+# Ensure age_group is a factor with specified levels
+oneday <- oneday %>%
+  mutate(age_group = factor(age_group, levels = c("6", "7-10", "11-12")))
+
+# Define the capitalize function
+capitalize <- function(x) {
+  paste0(toupper(substr(x, 1, 1)), substr(x, 2, nchar(x)))
+}
+
+# Create EAR_men dataframe
+EAR_men <- data.frame(
+  Age = c("6", "7-10", "11-12", "6-12"),
+  calcium = c(680, 680, 960, 680),
+  iron = c(5, 8, 12.8, 8),
+  zinc = c(4.6, 6.2, 8.9, 6.2),
+  thiamin = c(0.5, 0.5, 0.7, 0.5),
+  riboflavin = c(0.6, 0.8, 1.0, 0.8),
+  vitb6 = c(0.6, 0.9, 1.2, 0.9),
+  vitb12 = c(1.0, 1.0, 1.5, 1.0),
+  vitc = c(25, 40, 60, 40),
+  folate = c(110, 160, 210, 160),
+  niacin = c(6, 6, 9, 6),
+  rae = c(245, 320, 480, 320)
+) %>%
+  rename_all(capitalize)
+
+# Print EAR_men DataFrame
+print("EAR_men DataFrame:")
+print(EAR_men)
+
+# Define the fit_distributions function with dynamic starting values and extensive error handling
+fit_distributions <- function(data, nutrient) {
+  require(fitdistrplus)
+  require(MASS)
+  
+  # Remove or adjust zero values
+  data_nonzero <- data[[nutrient]]
+  data_nonzero <- data_nonzero[data_nonzero > 0]
+  
+  if (length(data_nonzero) == 0) {
+    message("No positive values for nutrient ", nutrient)
+    return(NULL)
+  }
+  
+  # Cap extreme outliers
+  quantiles <- quantile(data_nonzero, probs = c(0.01, 0.99))
+  data_capped <- pmin(pmax(data_nonzero, quantiles[1]), quantiles[2])
+  
+  fit_gamma <- tryCatch({
+    start_vals <- list(shape = (mean(data_capped)^2) / var(data_capped), rate = mean(data_capped) / var(data_capped))
+    fitdist(data_capped, distr = "gamma", method = "mle", start = start_vals)
+  }, error = function(e) {
+    message("Error fitting gamma distribution for nutrient ", nutrient, ": ", e$message)
+    return(NULL)
+  })
+  
+  fit_lnorm <- tryCatch({
+    fitdist(data_capped, distr = "lnorm", method = "mle")
+  }, error = function(e) {
+    message("Error fitting lognormal distribution for nutrient ", nutrient, ": ", e$message)
+    return(NULL)
+  })
+  
+  fit_norm <- tryCatch({
+    fitdist(data_capped, distr = "norm", method = "mle")
+  }, error = function(e) {
+    message("Error fitting normal distribution for nutrient ", nutrient, ": ", e$message)
+    return(NULL)
+  })
+  
+  # Summary of fits
+  if (!is.null(fit_gamma)) {
+    print(paste("Gamma fit for nutrient", nutrient))
+    print(summary(fit_gamma))
+  }
+  if (!is.null(fit_lnorm)) {
+    print(paste("Lognormal fit for nutrient", nutrient))
+    print(summary(fit_lnorm))
+  }
+  if (!is.null(fit_norm)) {
+    print(paste("Normal fit for nutrient", nutrient))
+    print(summary(fit_norm))
+  }
+  
+  # Choose the best distribution based on AIC
+  fits <- list(fit_gamma = fit_gamma, fit_lnorm = fit_lnorm, fit_norm = fit_norm)
+  fits <- fits[!sapply(fits, is.null)]
+  
+  if (length(fits) > 0) {
+    aic_values <- sapply(fits, function(fit) fit$aic)
+    best_dist <- names(fits)[which.min(aic_values)]
+  } else {
+    best_dist <- NULL
+  }
+  
+  return(list(fits = fits, best_dist = best_dist))
+}
+
+# Define the calculate_sev function with error handling
+calculate_sev <- function(fits, nutrient, ear) {
+  nutrient_cv <- if (nutrient %in% c("niacin", "folate", "rae")) 0.15 else 0.10
+  
+  best_dist <- fits$best_dist
+  sev_result <- tryCatch({
+    if (best_dist == "fit_gamma" && !is.null(fits$fits$fit_gamma)) {
+      params <- fits$fits$fit_gamma$estimate
+      shape <- params[1]
+      rate <- params[2]
+      sev(ear = ear, shape = shape, rate = rate, cv = nutrient_cv, plot = TRUE)
+    } else if (best_dist == "fit_lnorm" && !is.null(fits$fits$fit_lnorm)) {
+      params <- fits$fits$fit_lnorm$estimate
+      meanlog <- params[1]
+      sdlog <- params[2]
+      sev(ear = ear, meanlog = meanlog, sdlog = sdlog, cv = nutrient_cv, plot = TRUE)
+    } else if (best_dist == "fit_norm" && !is.null(fits$fits$fit_norm)) {
+      params <- fits$fits$fit_norm$estimate
+      mean <- params[1]
+      sd <- params[2]
+      sev(ear = ear, mean = mean, sd = sd, cv = nutrient_cv, plot = TRUE)
+    } else {
+      message("Unsupported distribution or fitting failed for ", nutrient)
+      return(NULL)
+    }
+  }, error = function(e) {
+    message("Error calculating SEV for ", nutrient, ": ", e$message)
+    return(NULL)
+  })
+  
+  return(sev_result)
+}
+
+# List of nutrients to calculate
+nutrients <- c("calcium", "iron", "zinc", "thiamin", "riboflavin", 
+               "vitb6", "vitb12", "vitc", "folate", "niacin", "rae")
+
+# Create a function to automate the process for each nutrient and age group
+process_nutrient_sev <- function(data, nutrient, ear_data) {
+  results <- data.frame()
+  age_groups <- unique(data$age_group)
+  
+  for (age_group in age_groups) {
+    subset_data <- data %>%
+      filter(age_group == age_group)
+    
+    if (nrow(subset_data) > 0) {
+      fits <- fit_distributions(subset_data, nutrient)
+      if (is.null(fits$best_dist)) next
+      
+      ear <- ear_data %>%
+        dplyr::filter(Age == age_group) %>%
+        dplyr::pull(capitalize(nutrient)) %>%
+        as.numeric()
+      
+      print(paste("Nutrient:", nutrient, "Age Group:", age_group, "EAR:", ear))
+      
+      if (length(ear) == 0 || is.na(ear)) {
+        print(paste("Skipping nutrient:", nutrient, "for age group:", age_group, "due to missing EAR."))
+        next
+      }
+      
+      sev_result <- calculate_sev(fits, nutrient, ear)
+      if (is.null(sev_result)) next
+      
+      results <- rbind(results, data.frame(Nutrient = nutrient, age_group = age_group, sev = sev_result, best_dist = fits$best_dist))
+    }
+  }
+  return(results)
+}
+
+# Process individual age groups
+all_results <- data.frame()
+
+for (nutrient in nutrients) {
+  if (nutrient %in% c("calcium", "iron", "zinc", "thiamin", "riboflavin", "vitb6", "vitb12", "vitc", "folate", "niacin", "rae")) {
+    nutrient_results <- process_nutrient_sev(oneday, nutrient, EAR_men)
+    all_results <- rbind(all_results, nutrient_results)
+    print(nutrient_results)
+  }
+}
+
+# Process total age group 6-12
+total_results <- data.frame()
+
+for (nutrient in nutrients) {
+  fits <- fit_distributions(oneday, nutrient)
+  if (is.null(fits$best_dist)) next
+  
+  ear <- EAR_men %>%
+    dplyr::filter(Age == "6-12") %>%
+    dplyr::pull(capitalize(nutrient)) %>%
+    as.numeric()
+  
+  print(paste("Nutrient:", nutrient, "Age Group: 6-12", "EAR:", ear))
+  
+  if (length(ear) == 0 || is.na(ear)) {
+    print(paste("Skipping nutrient:", nutrient, "for age group: 6-12 due to missing EAR."))
+    next
+  }
+  
+  sev_result <- calculate_sev(fits, nutrient, ear)
+  if (is.null(sev_result)) next
+  
+  total_results <- rbind(total_results, data.frame(Nutrient = nutrient, age_group = "6-12", sev = sev_result, best_dist = fits$best_dist))
+}
+
+# Combine individual and total results
+all_results <- rbind(all_results, total_results)
+
+##problematic nutrient method 3:
+
+##seperate for vitb12, vitc and rae
+
+# Process individual age groups for problematic nutrients
+problematic_nutrients <- c("rae", "vitb12", "vitc")
+
+problematic_results <- data.frame()
+
+for (nutrient in problematic_nutrients) {
+  print(paste("Processing nutrient:", nutrient))
+  nutrient_results <- process_nutrient_sev(oneday, nutrient, EAR_men)
+  problematic_results <- rbind(problematic_results, nutrient_results)
+  print(nutrient_results)
+}
+
+# Save results for problematic nutrients
+write.xlsx(problematic_results, file.path(output_directory_path, "problematic_nutrients_results.xlsx"))
+
+# Print final results for problematic nutrients
+print("Final Results for problematic nutrients:")
+print(problematic_results)
+
+# Combine the two dataframes and remove duplicates
+all_results <- rbind(all_results, problematic_results) %>%
+  distinct()
+
+# Optional: Check the combined dataframe
+head(all_results)
+
+# Calculate the weighted average SEV for the new age group "6-12_w"
+n_6 <- 49
+n_7_10 <- 263
+n_11_12 <- 130
+
+weighted_results <- all_results %>%
+  filter(age_group %in% c("6", "7-10", "11-12")) %>%
+  group_by(Nutrient) %>%
+  summarise(
+    sev_6 = sev[age_group == "6"],
+    sev_7_10 = sev[age_group == "7-10"],
+    sev_11_12 = sev[age_group == "11-12"],
+    best_dist_6 = first(best_dist[age_group == "6"]),
+    best_dist_7_10 = first(best_dist[age_group == "7-10"]),
+    best_dist_11_12 = first(best_dist[age_group == "11-12"]),
+    weighted_sev = (n_6 * sev_6 + n_7_10 * sev_7_10 + n_11_12 * sev_11_12) / (n_6 + n_7_10 + n_11_12),
+    best_dist = first(best_dist) # Assuming best_dist remains same for age groups
+  ) %>%
+  dplyr::select(Nutrient, weighted_sev, best_dist) %>%
+  mutate(age_group = "6-12_w")
+
+# Combine the weighted results with the original results
+all_results <- bind_rows(all_results, weighted_results %>%
+                           rename(sev = weighted_sev))
+
+# Save results with the best_fit column
+write.xlsx(all_results, file.path(output_directory_path, "sev_results_with_best_fit.xlsx"))
+
+# Create a table without the best_fit column
+all_results_without_best_fit <- all_results %>% dplyr::select(-best_dist)
+
+# Save results without the best_fit column
+write.xlsx(all_results_without_best_fit, file.path(output_directory_path, "sev_results.xlsx"))
+
+# Print final results
+print("Final Results with best_fit:")
+print(all_results)
+print("Final Results without best_fit:")
+print(all_results_without_best_fit)
+
+
+```
+
+Method 4: Cut point method with usual intake (SPADE)
+
+Formula: Prevalence of Inadequacy= ∑ ((usual intake (i) <EAR) / total population, where (i) is the individual usual intake 
+
+
+```{r Method 4: SAC SPADE EAR CO f.spade, echo=FALSE, results='hide', warning=FALSE, message=FALSE} 
+
+
+#1. all nutrients SAC with age/sex 
+
+#no bootstrapping do the backtrans.nr=3
+
+
+# Set your working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+
+# Define file paths
+oneday_file_path <- "filtered_data_without_kcal_outliersSAC.xlsx"
+
+ear_male_file_path <- read.xlsx("EAR_male.xlsx", sheet=1)
+
+ear_female_file_path <- read.xlsx("EAR_female.xlsx", sheet=1)
+
+output_directory_path <- "SPADE_CO"
+
+# Load datasets
+RC24_LT_c_or <- read_excel(oneday_file_path)
+EAR_men <- read.xlsx("EAR_male.xlsx", sheet = 1)
+EAR_women <- read.xlsx("EAR_female.xlsx", sheet = 1)
+names(EAR_men)[1] <- "age"
+names(EAR_women)[1] <- "age"
+
+
+#RC24_LT_c_or
+#sex and age group
+#micronutrients
+#gender<- c("male", "women") 
+nms <- c(  "iron","zinc", "rae", "thiamin", "riboflavin", "niacin", "vitc", "folate", "vitb12", "calcium","vitb6")
+#for (jj in seq_along(along.with = gender)){
+  for (ii in seq_along(along.with = nms)){
+   f.spade(
+ frml.ia = as.formula(paste(nms[ii]," ~ fp(age)")),
+ frml.if = "no.if", # "no.if" = no zeroes, no intake frequencies
+ data = RC24_LT_c_or,
+ min.age = 6,
+max.age = 12, 
+ #sex = gender[jj],
+ #EAR.men = list(men = EAR_men),
+ #EAR.women = list(women = EAR_women),
+ sex.label =  "both", 
+#groups.frml = ~ sex,
+ # age.classes = list(age= c(5,7,10,12)),   
+  age.classes =  c(5,7,10,12),  
+  #weights.name = "w_demog_season_wk_wknd",
+  prb = c(0.0025, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07,0.08, 0.09, 0.10, 0.11, 0.12, 0.13, 0.14, 0.15, 0.16, 0.17, 0.18, 0.19, 0.20, 0.21, 0.22, 0.23, 0.24, 0.25, 0.26, 0.27, 0.28, 0.29, 0.30, 0.31, 0.32,0.33,0.34,0.35,0.36,0.37,0.38,0.39,0.40,0.41,0.42,0.43,0.44,0.45,0.46,0.47,0.48,0.49, 0.50, 0.51,0.52,0.53,0.54,0.55,0.56,0.57,0.58,0.59,0.60,0.61,0.62,0.63,0.64,0.65,0.66,0.67,0.68,0.69,0.70,0.71, 0.72, 0.73, 0.74, 0.75, 0.76, 0.77,0.78,0.79,0.80,0.81,0.82,0.83,0.84,0.85,0.86,0.87,0.88,0.89, 0.90, 0.91,0.92,0.93,0.94,0.95,0.96,0.97,0.98,0.99,0.9975),
+  EAR.names = c("EAR_men"), #proportion below 
+  #AI.names = "AI.women", #comparision with median 
+  #UL.names = c("UL.men"), #proportion above,
+  backtrans.nr = 2,
+  #output.name = paste0("AN_all_mfm_6_12_EAR_agedep_outcome", comp), 
+  #n.boot=25, #200 deafult
+  seed = 29062020,
+  spade.output.path = "SPADE_CO/f.spade"
+)
+  }
+
+# Define Directory Path
+directory_path <- "f.spade/3_excel_tables"
+
+output_directory_path <- "SPADE_CO/f.spade"
+
+# Specify the list of nutrients to include
+included_nutrients <- c("iron", "zinc", "rae", "thiamin", "riboflavin", "niacin", "vitc", "folate", "vitb12", "calcium", "vitb6")
+
+# Function to standardize column names
+standardize_colnames <- function(data, suffix) {
+  colnames(data) <- gsub("EAR1", "EAR1", colnames(data))
+  colnames(data) <- gsub("EAR1.p", "EAR1.p", colnames(data))
+  colnames(data)[-1] <- paste0(colnames(data)[-1], suffix)
+  return(data)
+}
+
+# Function to Read Each File for a given sex group
+read_data <- function(file_path, nutrient, sheet_prefix) {
+  # Read the first row to get headers
+  hi_header <- read_excel(file_path, sheet = sheet_prefix, n_max = 1, col_names = FALSE) %>% unlist()
+  
+  # Read the data, skipping the first row
+  hi_data <- read_excel(file_path, sheet = sheet_prefix, skip = 1, col_names = FALSE)
+  
+  # Assign the correct headers
+  colnames(hi_data) <- c("age_group", hi_header[-1])
+  
+  # Standardize column names and add suffixes to distinguish columns
+  hi_data <- standardize_colnames(hi_data, "")
+  
+  # Add nutrient and sex columns
+  hi_data <- hi_data %>%
+    mutate(nutrient = nutrient)
+  
+  return(hi_data)
+}
+
+# Function to Read Each File
+read_nutrient_file <- function(file_path, nutrient) {
+  # Read data for Total sex group only
+  total_data <- read_data(file_path, nutrient, "HI")
+  
+  return(total_data)
+}
+
+# List Files with Full Path
+files <- list.files(path = directory_path, pattern = "spade_RC24_LT_c_or_.*_b_6_12.xlsx", full.names = TRUE)
+
+# Extract Nutrients from File Names
+extract_nutrient <- function(file_name) {
+  str_extract(basename(file_name), "(?<=spade_RC24_LT_c_or_)(.*)(?=_b_6_12)")
+}
+
+nutrients <- map_chr(files, extract_nutrient)
+
+# Filter files and nutrients to include only the specified nutrients
+included_files <- files[nutrients %in% included_nutrients]
+included_nutrients <- nutrients[nutrients %in% included_nutrients]
+
+# Read All Files and Combine
+all_data <- map2_dfr(included_files, included_nutrients, read_nutrient_file)
+
+# Define the desired column order
+desired_order <- c("nutrient", "age_group", "AM", "P5", "P10", "P25", "P50", "P75", "P90", "P95", "EAR1", "EAR1.p")
+
+# Reorder columns if they exist in the data frame
+all_data_SAC_or <- all_data %>% dplyr::select(any_of(desired_order))
+
+# Print the Combined Data Frame with Reordered Columns
+print(all_data_SAC_or)
+
+# Save the Combined Data Frame as an Excel file
+write_xlsx(all_data_SAC_or, file.path(output_directory_path, "Nutrient_Statistics_by_Age_Group.xlsx"))
+
+## EAR.p1 table
+
+# Create an additional table with selected columns, only for sex = Total
+selected_data <- all_data_SAC_or %>%
+  dplyr::select(nutrient, age_group, EAR1.p)
+
+# Rename age_group values
+selected_data <- selected_data %>%
+  mutate(age_group = case_when(
+    age_group == "(5,12]" ~ "6-12_w",
+    age_group == "(5,7]" ~ "6",
+    age_group == "(7,10]" ~ "7-10",
+    age_group == "(10,12]" ~ "11-12",
+    TRUE ~ age_group
+  ))
+
+# Print the Selected Data Frame
+print(selected_data)
+
+# Save the Selected Data Frame as an Excel file
+write_xlsx(selected_data, file.path(output_directory_path, "EAR_Prevalence_by_Age_Group.xlsx"))
+
+
+```
+Nb. iron 11-12 yo group sev does not take into account female.EAR (which is slightly lower than male)
+
+Method 5: 
+
+SPADE results come from method 4
+
+Here PA is calculated differently from method 1, as the indiviudal data points are no longer give after spade. The actual intake distribution is still known, by the use of percentiles. PA is calculated using the distribution percentile.  
+
+
+```{r Method 5: SAC SPADE PA s.pade, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, results = 'hide') 
+
+#1 read and preprcoess the data  
+
+# Load required packages
+required_packages <- c("dplyr", "readxl", "openxlsx", "stringr")
+lapply(required_packages, library, character.only = TRUE)
+
+# Set your working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+
+# Define Directory Path
+input_directory_path <- read.xlsx("f.spade/3_excel_tables", sheet=1)
+
+ear_male_file_path <- read.xlsx("EAR_male.xlsx", sheet=1)
+
+output_directory_path <- "SPADE_PA/f.spade"
+
+
+# Function to capitalize the first letter of each column name
+capitalize <- function(x) {
+  paste0(toupper(substr(x, 1, 1)), substr(x, 2, nchar(x)))
+}
+
+# Read and preprocess EAR values
+read_and_preprocess_ear <- function(file_path) {
+  ear_data <- read_excel(file_path, sheet = 1)
+  names(ear_data)[1] <- "Age"
+  ear_data <- ear_data %>% rename_all(capitalize)
+  return(ear_data)
+}
+
+EAR_men <- read_and_preprocess_ear(ear_male_file_path)
+
+# Function to read and preprocess data from sheet 2 (SPADE in method 4)
+read_and_preprocess_data <- function(file_path, nutrient) {
+  data <- read_excel(file_path, sheet = 2)  # Reading from sheet 2
+  
+  # Print the data to check the contents
+  print("Data read from sheet 2:")
+  print(head(data))
+  
+  # Remove columns with NA names
+  valid_columns <- !is.na(names(data))
+  data <- data[, valid_columns]
+  
+  # Clean and ensure all column names are valid
+  valid_colnames <- c("age_group", paste0("P", c(0.25, 1:99, 99.75)))
+  colnames(data) <- make.names(valid_colnames[valid_columns], unique = TRUE)
+  
+  # Convert percentile columns to numeric
+  data <- data %>% mutate(across(starts_with("P"), as.numeric))
+  
+  # Print the column names to check
+  print("Column names after cleaning:")
+  print(colnames(data))
+  
+  # Rename age groups
+  data <- data %>%
+    mutate(age_group = case_when(
+      age_group == "(5,12]" ~ "6-12",
+      age_group == "(5,7]" ~ "6",
+      age_group == "(7,10]" ~ "7-10",
+      age_group == "(10,12]" ~ "11-12",
+      TRUE ~ age_group
+    ))
+  
+  # Add the nutrient column
+  data <- data %>% mutate(Nutrient = nutrient, .before = age_group)
+  
+  return(data)
+}
+
+# Function to calculate PA values
+calculate_pa <- function(data, nutrient, EAR_value) {
+  # Assuming your data has a column for nutrient intake
+  percentiles <- data %>%
+    dplyr::select(starts_with("P"))
+  
+  # Define the coefficient of variation for the nutrient requirements
+  cv <- ifelse(nutrient %in% c("Niacin", "Folate", "Rae"), 0.15, 0.10)
+  
+  # Calculate the standard deviation of the nutrient requirements
+  sd_requirement <- EAR_value * cv
+  
+  PA <- apply(percentiles, 2, function(x) pnorm(x, mean = EAR_value, sd = sd_requirement))  ##function (x) should be the intake at every P
+  
+  return(as.data.frame(PA))
+}
+
+# Function to get EAR values for a specific age group
+get_ear_values <- function(age_group, nutrient) {
+  age <- case_when(
+    age_group == "6" ~ 6,
+    age_group == "7-10" ~ 8,
+    age_group == "11-12" ~ 11,
+    age_group == "6-12" ~ 8, # Use 7-10 age group EAR for 6-12
+    TRUE ~ NA_real_
+  )
+  
+  ear_values <- EAR_men %>% filter(Age == !!age) %>% pull(!!sym(nutrient))
+  print(paste("EAR value for age group", age_group, "and nutrient", nutrient, ":", ear_values))
+  return(ear_values)
+}
+
+# List all nutrient files in the directory
+file_list <- list.files(input_directory_path, pattern = "spade_RC24_LT_c_or_.*_b_6_12.xlsx", full.names = TRUE)
+
+# Create an empty list to store results
+pi_list <- list()
+
+# Exclude specific nutrients
+excluded_nutrients <- c("kcal", "cho", "fat", "protein", "fibre")
+
+# Loop through each file, process it, and calculate PI
+for (file_path in file_list) {
+  # Extract the nutrient name from the filename and capitalize it
+  nutrient <- str_extract(basename(file_path), "(?<=spade_RC24_LT_c_or_)(.*)(?=_b_6_12)")
+  nutrient <- tolower(nutrient)
+  
+  if (nutrient %in% excluded_nutrients) {
+    next
+  }
+  
+  nutrient <- paste0(toupper(substr(nutrient, 1, 1)), substr(nutrient, 2, nchar(nutrient)))
+  
+  # Read and preprocess data from sheet 2
+  data <- read_and_preprocess_data(file_path, nutrient)
+  
+  # Loop through each age group and calculate PI
+  for (age_group in unique(data$age_group)) {
+    EAR_value <- get_ear_values(age_group, nutrient)
+    if (!is.na(EAR_value)) {
+      print(paste("Processing:", nutrient, "for age group:", age_group, "with EAR value:", EAR_value)) # Debugging print
+      
+      # Filter the data for the specific age group
+      age_group_data <- data %>% filter(age_group == !!age_group)
+      
+      pa_values <- calculate_pa(age_group_data, nutrient, EAR_value)
+      # Debugging: Print the PA values
+      print(paste("PA values for nutrient", nutrient, "and age group", age_group, ":"))
+      print(head(pa_values))
+      
+      # Average PA values across percentiles for the age group   ##average and not summed? 
+      avg_pa <- colMeans(pa_values, na.rm = TRUE)
+      
+      # Calculate PI (1 - avg_pa)
+      pi_value <- (1 - avg_pa) * 100
+      
+      # Ensure the result is not negative
+      pi_value <- ifelse(pi_value < 0, 0, pi_value)
+      
+      pi_stats <- data.frame(Nutrient = nutrient, age_group = age_group, PI = pi_value)
+      pi_list[[paste(nutrient, age_group, sep = "_")]] <- pi_stats
+    } else {
+      print(paste("No EAR values found for nutrient:", nutrient, "and age_group:", age_group))
+    }
+  }
+}
+
+# Check contents of pi_list
+print("Contents of pi_list:")
+print(pi_list)
+
+# Combine PI results into one data frame
+pi_stats <- bind_rows(pi_list)
+
+# Ensure the Nutrient column is first
+if ("Nutrient" %in% colnames(pi_stats)) {
+  pi_stats <- pi_stats %>% dplyr::select(Nutrient, age_group, PI)
+}
+
+# Print the table to check
+print("Final PI stats:")
+print(pi_stats)
+
+# Calculate the weighted average PI for the new age group "6-12_w"
+n_6 <- 49
+n_7_10 <- 263
+n_11_12 <- 130
+
+weighted_pi_stats <- pi_stats %>%
+  filter(age_group %in% c("6", "7-10", "11-12")) %>%
+  group_by(Nutrient) %>%
+  summarise(
+    PI_6 = sum(PI[age_group == "6"]),
+    PI_7_10 = sum(PI[age_group == "7-10"]),
+    PI_11_12 = sum(PI[age_group == "11-12"]),
+    weighted_PI = (n_6 * PI_6 + n_7_10 * PI_7_10 + n_11_12 * PI_11_12) / (n_6 + n_7_10 + n_11_12)
+  ) %>%
+  mutate(age_group = "6-12_w") %>%
+  dplyr::select(Nutrient, weighted_PI, age_group) %>%
+  rename(PI = weighted_PI)
+
+# Combine the weighted results with the original results
+pi_stats <- bind_rows(pi_stats, weighted_pi_stats)
+
+# Save the updated results to an Excel file
+write.xlsx(pi_stats, file.path(output_directory_path, "Combined_PI_by_Age_Group.xlsx"))
+
+# Print final results
+print("Final Results with Weighted Averages:")
+print(pi_stats)
+
+
+```
+
+Nb. iron 11-12 yo group sev does not take into account female.EAR (which is slightly lower than male)
+
+Method 6; nutriR
+
+Need to use SPADE backtrans.nr = 3 here in this script
+
+
+```{r adding fit info Method 6 - SAC SPADE NutriR with images sub.group, echo=FALSE, results='hide', warning=FALSE, message=FALSE} 
+# Load required packages
+required_packages <- c("tidyverse", "fitdistrplus", "nutriR", "png", "readxl", "openxlsx", "writexl", "e1071")
+for (package in required_packages) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+# Set your working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+
+# Define Directory Path
+oneday_file_path <- read.xlsx("filtered_data_without_kcal_outliersSAC.xlsx", sheet=1)
+
+ear_male_file_path <- read.xlsx("EAR_male.xlsx", sheet=1)
+ear_female_file_path <- read.xlsx("EAR_female.xlsx", sheet=1)
+
+output_directory_path <- "SPADE_NutriR"
+
+# Load datasets
+RC24_LT_c_or <- read_excel(oneday_file_path)
+EAR_men <- read.xlsx(ear_male_file_path, sheet = 1)
+EAR_women <- read.xlsx(ear_female_file_path, sheet = 1)
+names(EAR_men)[1] <- "age"
+names(EAR_women)[1] <- "age"
+
+# Ensure EAR_men and EAR_women have entries for ages 6 through 12
+required_ages <- 6:12
+
+# Function to fill missing ages in the EAR data
+fill_missing_ages <- function(ear_data, required_ages) {
+  existing_ages <- ear_data$age
+  missing_ages <- setdiff(required_ages, existing_ages)
+  
+  for (age in missing_ages) {
+    new_row <- ear_data[ear_data$age == 8, ]  # Example: Using age 8 EAR values for missing ages
+    new_row$age <- age
+    ear_data <- rbind(ear_data, new_row)
+  }
+  
+  return(ear_data %>% arrange(age))
+}
+
+EAR_men <- fill_missing_ages(EAR_men, required_ages)
+EAR_women <- fill_missing_ages(EAR_women, required_ages)
+
+# Define nutrient_age_groups for SEV calculations
+nutrient_age_groups <- list(
+  calcium6 = list(nutrient = "calcium", age_group = "6"),
+  calcium710 = list(nutrient = "calcium", age_group = "7-10"),
+  calcium1112 = list(nutrient = "calcium", age_group = "11-12"),
+  calcium612 = list(nutrient = "calcium", age_group = "6-12"),
+  iron6 = list(nutrient = "iron", age_group = "6"),
+  iron710 = list(nutrient = "iron", age_group = "7-10"),
+  iron1112 = list(nutrient = "iron", age_group = "11-12"),
+  iron612 = list(nutrient = "iron", age_group = "6-12"),
+  zinc6 = list(nutrient = "zinc", age_group = "6"),
+  zinc710 = list(nutrient = "zinc", age_group = "7-10"),
+  zinc1112 = list(nutrient = "zinc", age_group = "11-12"),
+  zinc612 = list(nutrient = "zinc", age_group = "6-12"),
+  rae6 = list(nutrient = "rae", age_group = "6"),
+  rae710 = list(nutrient = "rae", age_group = "7-10"),
+  rae1112 = list(nutrient = "rae", age_group = "11-12"),
+  rae612 = list(nutrient = "rae", age_group = "6-12"),
+  thiamin6 = list(nutrient = "thiamin", age_group = "6"),
+  thiamin710 = list(nutrient = "thiamin", age_group = "7-10"),
+  thiamin1112 = list(nutrient = "thiamin", age_group = "11-12"),
+  thiamin612 = list(nutrient = "thiamin", age_group = "6-12"),
+  riboflavin6 = list(nutrient = "riboflavin", age_group = "6"),
+  riboflavin710 = list(nutrient = "riboflavin", age_group = "7-10"),
+  riboflavin1112 = list(nutrient = "riboflavin", age_group = "11-12"),
+  riboflavin612 = list(nutrient = "riboflavin", age_group = "6-12"),
+  niacin6 = list(nutrient = "niacin", age_group = "6"),
+  niacin710 = list(nutrient = "niacin", age_group = "7-10"),
+  niacin1112 = list(nutrient = "niacin", age_group = "11-12"),
+  niacin612 = list(nutrient = "niacin", age_group = "6-12"),
+  vitc6 = list(nutrient = "vitc", age_group = "6"),
+  vitc710 = list(nutrient = "vitc", age_group = "7-10"),
+  vitc1112 = list(nutrient = "vitc", age_group = "11-12"),
+  vitc612 = list(nutrient = "vitc", age_group = "6-12"),
+  folate6 = list(nutrient = "folate", age_group = "6"),
+  folate710 = list(nutrient = "folate", age_group = "7-10"),
+  folate1112 = list(nutrient = "folate", age_group = "11-12"),
+  folate612 = list(nutrient = "folate", age_group = "6-12"),
+  vitb126 = list(nutrient = "vitb12", age_group = "6"),
+  vitb12710 = list(nutrient = "vitb12", age_group = "7-10"),
+  vitb121112 = list(nutrient = "vitb12", age_group = "11-12"),
+  vitb12612 = list(nutrient = "vitb12", age_group = "6-12"),
+  vitb66 = list(nutrient = "vitb6", age_group = "6"),
+  vitb6710 = list(nutrient = "vitb6", age_group = "7-10"),
+  vitb61112 = list(nutrient = "vitb6", age_group = "11-12"),
+  vitb6612 = list(nutrient = "vitb6", age_group = "6-12")
+)
+
+##step 2
+
+# Define the list of nutrients
+nms <- c("iron", "zinc", "rae", "thiamin", "riboflavin", "niacin", "vitc", "folate", "vitb12", "calcium", "vitb6")
+
+# Function to process each nutrient with f.spade
+process_nutrient_f.spade <- function(nutrient, data, EAR_men, EAR_women, output_directory_path) {
+  tryCatch({
+    formula <- as.formula(paste(nutrient, "~ fp(age)"))
+    outcome <- f.spade(
+      frml.ia = formula, # age-dependent modelling
+      frml.if = "no.if", # no intake frequencies
+      data = data, # your dataset
+      min.age = 6, # overall minimum age in dataset
+      max.age = 12, # overall maximum age in dataset
+      sex.label = "both", 
+      age.classes = c(6, 10, 12), 
+      prb = c(0.10, 0.25, 0.50, 0.75, 0.90),
+      EAR.names = c("EAR_men"),
+      backtrans.nr = 3,
+      #output.name = "trial",
+      seed = 29062020,
+      spade.output.path = output_directory_path
+    )
+    return(outcome)
+  }, error = function(e) {
+    message("Error in processing nutrient ", nutrient, ": ", e$message)
+    return(NULL)
+  })
+}
+
+# Apply the process_nutrient function to all nutrients
+results_list <- list()
+for (ii in seq_along(nms)) {
+  nutrient <- nms[ii]
+  result <- process_nutrient_f.spade(nutrient, RC24_LT_c_or, EAR_men, EAR_women, output_directory_path)
+  if (is.null(result)) {
+    message("No result for nutrient: ", nutrient)
+  } else {
+    results_list[[nutrient]] <- result
+    print(paste("Processed nutrient:", nutrient))
+  }
+}
+
+# Print the structure of results_list
+str(results_list)
+
+# Function to filter data by age group
+filter_data_by_age <- function(data, age_range) {
+  if (is.null(data)) {
+    return(NULL)
+  }
+  filtered_data <- data %>% filter(age %in% age_range)
+  return(filtered_data)
+}
+
+# Filter and combine datasets into a list based on age groups
+nutrient_data <- list()
+for (name in names(nutrient_age_groups)) {
+  nutrient <- nutrient_age_groups[[name]]$nutrient
+  age_group <- nutrient_age_groups[[name]]$age_group
+  
+  age_range <- switch(
+    age_group,
+    "6" = 6,
+    "7-10" = 7:10,
+    "11-12" = 11:12,
+    "6-12" = 6:12
+  )
+  
+  if (is.null(results_list[[nutrient]])) {
+    print(paste("No results found for nutrient:", nutrient))
+    next
+  }
+  
+  filtered_data <- filter_data_by_age(results_list[[nutrient]], age_range)
+  if (is.null(filtered_data) || nrow(filtered_data) == 0) {
+    print(paste("No data after filtering for nutrient:", nutrient, "age group:", age_group))
+    next
+  }
+  
+  nutrient_data[[name]] <- list(data = filtered_data, nutrient = nutrient, age_group = age_group)
+  print(paste("Filtered data for nutrient:", nutrient, "age group:", age_group))
+}
+
+# Check if data was correctly extracted
+print(names(nutrient_data))
+str(nutrient_data)
+
+## Process and Filter Data by Age Group
+
+# Function to filter data by age group
+filter_data_by_age <- function(data, age_range) {
+  if (is.null(data)) {
+    return(NULL)
+  }
+  filtered_data <- data %>% filter(age %in% age_range)
+  return(filtered_data)
+}
+
+# Filter and combine datasets into a list based on age groups
+nutrient_data <- list()
+for (name in names(nutrient_age_groups)) {
+  nutrient <- nutrient_age_groups[[name]]$nutrient
+  age_group <- nutrient_age_groups[[name]]$age_group
+  
+  age_range <- switch(
+    age_group,
+    "6" = 6,
+    "7-10" = 7:10,
+    "11-12" = 11:12,
+    "6-12" = 6:12
+  )
+  
+  if (is.null(results_list[[nutrient]])) {
+    print(paste("No results found for nutrient:", nutrient))
+    next
+  }
+  
+  filtered_data <- filter_data_by_age(results_list[[nutrient]], age_range)
+  if (is.null(filtered_data) || nrow(filtered_data) == 0) {
+    print(paste("No data after filtering for nutrient:", nutrient, "age group:", age_group))
+    next
+  }
+  
+  nutrient_data[[name]] <- list(data = filtered_data, nutrient = nutrient, age_group = age_group)
+  print(paste("Filtered data for nutrient:", nutrient, "age group:", age_group))
+}
+
+# Check if data was correctly extracted
+print(names(nutrient_data))
+str(nutrient_data)
+
+##Calculate SEV and Save Plots
+
+# Function to save SEV plots
+save_sev_plots <- function(shape, rate, meanlog, sdlog, mean, sd, ear, nutrient, age_group, output_directory) {
+  nutrient_cv <- if (nutrient %in% c("niacin", "folate", "rae")) 0.15 else 0.10
+  
+  if (!is.na(shape) && !is.na(rate)) {
+    plot_path_gamma <- file.path(output_directory, paste0(nutrient, "_", age_group, "_sev_gamma.png"))
+    png(plot_path_gamma, width = 800, height = 600)
+    tryCatch({
+      sev(ear = ear, cv = nutrient_cv, shape = shape, rate = rate, plot = TRUE)
+    }, error = function(e) {
+      message("Error plotting SEV for gamma distribution: ", e$message)
+    })
+    dev.off()
+  }
+
+  if (!is.na(mean) && !is.na(sd)) {
+    plot_path_norm <- file.path(output_directory, paste0(nutrient, "_", age_group, "_sev_norm.png"))
+    png(plot_path_norm, width = 800, height = 600)
+    tryCatch({
+      sev(ear = ear, cv = nutrient_cv, mean = mean, sd = sd, plot = TRUE)
+    }, error = function(e) {
+      message("Error plotting SEV for normal distribution: ", e$message)
+    })
+    dev.off()
+  }
+
+  if (!is.na(meanlog) && !is.na(sdlog)) {
+    plot_path_lnorm <- file.path(output_directory, paste0(nutrient, "_", age_group, "_sev_lnorm.png"))
+    png(plot_path_lnorm, width = 800, height = 600)
+    tryCatch({
+      sev(ear = ear, cv = nutrient_cv, meanlog = meanlog, sdlog = sdlog, plot = TRUE)
+    }, error = function(e) {
+      message("Error plotting SEV for lognormal distribution: ", e$message)
+    })
+    dev.off()
+  }
+}
+
+# Function to save distribution plots
+save_distribution_plots <- function(data, nutrient, age_group, output_directory) {
+  fit_gamma <- tryCatch(fitdist(data, distr = "gamma"), error = function(e) NULL)
+  fit_lnorm <- tryCatch(fitdist(data, distr = "lnorm"), error = function(e) NULL)
+  fit_norm <- tryCatch(fitdist(data, distr = "norm"), error = function(e) NULL)
+
+  fits <- list(fit_gamma, fit_lnorm, fit_norm)
+  fits <- fits[!sapply(fits, is.null)]
+  
+  if (length(fits) == 0) {
+    message("No valid fits for nutrient: ", nutrient, " and age group: ", age_group)
+    return()
+  }
+  
+  plot_path <- file.path(output_directory, paste0(nutrient, "_", age_group, "_distribution.png"))
+  png(plot_path, width = 800, height = 600)
+  par(mfrow = c(2, 2))
+  plot.legend <- c("gamma", "lognormal", "normal")
+  denscomp(fits, legendtext = plot.legend[1:length(fits)])
+  qqcomp(fits, legendtext = plot.legend[1:length(fits)])
+  cdfcomp(fits, legendtext = plot.legend[1:length(fits)])
+  ppcomp(fits, legendtext = plot.legend[1:length(fits)])
+  dev.off()
+}
+
+# Function to fit distributions and calculate SEV
+fit_distributions_and_calculate_sev <- function(data, nutrient, ear_value) {
+  fits <- list(
+    norm = tryCatch(fitdist(data, distr = "norm"), error = function(e) NULL),
+    gamma = tryCatch(fitdist(data, distr = "gamma"), error = function(e) NULL),
+    lnorm = tryCatch(fitdist(data, distr = "lnorm"), error = function(e) NULL)
+  )
+  
+  valid_fits <- fits[!sapply(fits, is.null)]
+  if (length(valid_fits) == 0) {
+    message("No valid distribution fits for nutrient:", nutrient)
+    return(list(sev_value = NA, best_fit = NA, best_fit_params = NULL))
+  }
+  
+  best_fit <- names(valid_fits)[which.min(sapply(valid_fits, function(fit) fit$aic))]
+  best_fit_params <- valid_fits[[best_fit]]$estimate
+  
+  calculate_sev <- function(fits, nutrient, ear) {
+    nutrient_cv <- if (nutrient %in% c("niacin", "folate", "rae")) 0.15 else 0.10
+    
+    sev_result <- tryCatch({
+      if (best_fit == "gamma") {
+        shape <- best_fit_params[1]
+        rate <- best_fit_params[2]
+        sev(ear = ear, shape = shape, rate = rate, cv = nutrient_cv, plot = TRUE)
+      } else if (best_fit == "lnorm") {
+        meanlog <- best_fit_params[1]
+        sdlog <- best_fit_params[2]
+        sev(ear = ear, meanlog = meanlog, sdlog = sdlog, cv = nutrient_cv, plot = TRUE)
+      } else if (best_fit == "norm") {
+        mean <- best_fit_params[1]
+        sd <- best_fit_params[2]
+        sev(ear = ear, mean = mean, sd = sd, cv = nutrient_cv, plot = TRUE)
+      } else {
+        stop("Unsupported distribution")
+      }
+    }, error = function(e) {
+      message("Error calculating SEV for ", nutrient, ": ", e$message)
+      return(NULL)
+    })
+    
+    return(sev_result)
+  }
+  
+  sev_value <- calculate_sev(valid_fits, nutrient, ear_value)
+  
+  gamma_params <- if (!is.null(fits$gamma)) fits$gamma$estimate else c(shape = NA, rate = NA)
+  lnorm_params <- if (!is.null(fits$lnorm)) fits$lnorm$estimate else c(meanlog = NA, sdlog = NA)
+  norm_params <- if (!is.null(fits$norm)) fits$norm$estimate else c(mean = NA, sd = NA)
+  
+  return(list(sev_value = sev_value, best_fit = best_fit, best_fit_params = best_fit_params, gamma_params = gamma_params, lnorm_params = lnorm_params, norm_params = norm_params))
+}
+
+# Function to process each dataset for SEV
+process_nutrient_data_sev <- function(nutrient_data, ear_data) {
+  results <- data.frame()
+  
+  for (name in names(nutrient_data)) {
+    if (is.null(nutrient_data[[name]])) {
+      print(paste("No data found for nutrient:", name))
+      next
+    }
+    
+    data <- nutrient_data[[name]]$data$HI %>% unlist()
+    nutrient <- nutrient_data[[name]]$nutrient
+    age_group <- nutrient_data[[name]]$age_group
+    
+    ear_value <- case_when(
+      age_group == "6" ~ ear_data %>% filter(age == 6) %>% pull(!!sym(nutrient)),
+      age_group == "7-10" ~ ear_data %>% filter(age == 8) %>% pull(!!sym(nutrient)),
+      age_group == "11-12" ~ ear_data %>% filter(age == 11) %>% pull(!!sym(nutrient)),
+      age_group == "6-12" ~ ear_data %>% filter(age == 8) %>% pull(!!sym(nutrient)),
+      TRUE ~ NA_real_
+    )
+    
+    if (length(ear_value) == 0) {
+      print(paste("No EAR value found for nutrient:", nutrient, "and age group:", age_group))
+      next
+    }
+    
+    if (length(data) <= 1) {
+      print(paste("Not enough data for nutrient:", nutrient, "and age group:", age_group))
+      next
+    }
+    
+    print(paste("Processing SEV for nutrient:", nutrient, "and age group:", age_group))
+    print(paste("EAR value for nutrient:", nutrient, "and age group:", age_group, "is", ear_value))
+    
+    sev_result <- fit_distributions_and_calculate_sev(data, nutrient, ear_value)
+    
+    if (!is.null(sev_result$sev_value)) {
+      results <- rbind(results, data.frame(
+        Nutrient = nutrient, 
+        age_group = age_group, 
+        SEV = sev_result$sev_value, 
+        best_fit = sev_result$best_fit,
+        gamma_shape = sev_result$gamma_params["shape"],
+        gamma_rate = sev_result$gamma_params["rate"],
+        lnorm_meanlog = sev_result$lnorm_params["meanlog"],
+        lnorm_sdlog = sev_result$lnorm_params["sdlog"],
+        norm_mean = sev_result$norm_params["mean"],
+        norm_sd = sev_result$norm_params["sd"]
+      ))
+    } else {
+      print(paste("SEV calculation returned NULL for nutrient:", nutrient, "and age group:", age_group))
+    }
+  }
+  
+  return(results)
+}
+
+# Apply the save_sev_plots and save_distribution_plots functions
+for (name in names(nutrient_data)) {
+  if (!is.null(nutrient_data[[name]])) {
+    data <- nutrient_data[[name]]$data$HI %>% unlist()
+    nutrient <- nutrient_data[[name]]$nutrient
+    age_group <- nutrient_data[[name]]$age_group
+    
+    ear_value <- case_when(
+      age_group == "6" ~ EAR_men %>% filter(age == 6) %>% pull(!!sym(nutrient)),
+      age_group == "7-10" ~ EAR_men %>% filter(age == 8) %>% pull(!!sym(nutrient)),
+      age_group == "11-12" ~ EAR_men %>% filter(age == 11) %>% pull(!!sym(nutrient)),
+      age_group == "6-12" ~ EAR_men %>% filter(age == 8) %>% pull(!!sym(nutrient)),
+      TRUE ~ NA_real_
+    )
+    
+    if (!is.na(ear_value) && length(ear_value) > 0) {
+      sev_result <- fit_distributions_and_calculate_sev(data, nutrient, ear_value)
+      if (!is.null(sev_result$sev_value) && !is.null(sev_result$best_fit_params)) {
+        shape <- if ("shape" %in% names(sev_result$best_fit_params)) sev_result$best_fit_params["shape"] else NA
+        rate <- if ("rate" %in% names(sev_result$best_fit_params)) sev_result$best_fit_params["rate"] else NA
+        meanlog <- if ("meanlog" %in% names(sev_result$best_fit_params)) sev_result$best_fit_params["meanlog"] else NA
+        sdlog <- if ("sdlog" %in% names(sev_result$best_fit_params)) sev_result$best_fit_params["sdlog"] else NA
+        mean <- if ("mean" %in% names(sev_result$best_fit_params)) sev_result$best_fit_params["mean"] else NA
+        sd <- if ("sd" %in% names(sev_result$best_fit_params)) sev_result$best_fit_params["sd"] else NA
+        
+        save_sev_plots(shape, rate, meanlog, sdlog, mean, sd, ear_value, nutrient, age_group, output_directory_path)
+        save_distribution_plots(data, nutrient, age_group, output_directory_path)
+      }
+    }
+  }
+}
+
+# Process the datasets and calculate SEV
+sev_results_with_best_fit <- process_nutrient_data_sev(nutrient_data, EAR_men)
+sev_results_without_best_fit <- sev_results_with_best_fit %>% dplyr::select(-best_fit)
+
+# Print and save the SEV results
+print(sev_results_with_best_fit)
+print(sev_results_without_best_fit)
+write_xlsx(sev_results_with_best_fit, file.path(output_directory_path, "SEV_results_with_best_fit.xlsx"))
+write_xlsx(sev_results_without_best_fit, file.path(output_directory_path, "SEV_results.xlsx"))
+
+
+##NORMALITY
+
+# Load required packages
+required_packages <- c("tidyverse", "fitdistrplus", "nutriR", "png", "readxl", "openxlsx", "writexl", "e1071", "goftest")
+for (package in required_packages) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+# Function to test normality and fit distributions with fixed AD test
+fit_distributions_and_calculate_sev <- function(data, nutrient, ear_value) {
+  if (length(unique(data)) < 3) {
+    message("Not enough unique values for AD test on ", nutrient)
+    return(list(sev_value = NA, best_fit = NA, AIC_norm = NA, AIC_gamma = NA, AIC_lnorm = NA,
+                LogL_norm = NA, LogL_gamma = NA, LogL_lnorm = NA, AD_norm = NA, AD_gamma = NA, AD_lnorm = NA))
+  }
+  
+  # Fit distributions
+  fit_norm <- tryCatch(fitdist(data, distr = "norm"), error = function(e) NULL)
+  fit_gamma <- tryCatch(fitdist(data, distr = "gamma"), error = function(e) NULL)
+  fit_lnorm <- tryCatch(fitdist(data, distr = "lnorm"), error = function(e) NULL)
+
+  # Compute AIC values
+  AIC_norm <- if (!is.null(fit_norm)) fit_norm$aic else NA
+  AIC_gamma <- if (!is.null(fit_gamma)) fit_gamma$aic else NA
+  AIC_lnorm <- if (!is.null(fit_lnorm)) fit_lnorm$aic else NA
+
+  # Select best fit based on lowest AIC
+  AIC_values <- c(norm = AIC_norm, gamma = AIC_gamma, lnorm = AIC_lnorm)
+  best_fit <- names(which.min(AIC_values))
+
+  # Compute log-likelihood
+  LogL_norm <- if (!is.null(fit_norm)) logLik(fit_norm) else NA
+  LogL_gamma <- if (!is.null(fit_gamma)) logLik(fit_gamma) else NA
+  LogL_lnorm <- if (!is.null(fit_lnorm)) logLik(fit_lnorm) else NA
+
+  # Perform Anderson-Darling test for all valid distributions
+  AD_norm <- tryCatch({ if (!is.null(fit_norm)) ad.test(data, "pnorm")$statistic else NA }, error = function(e) NA)
+  AD_gamma <- tryCatch({ if (!is.null(fit_gamma)) ad.test(data, "pgamma", fit_gamma$estimate[1], fit_gamma$estimate[2])$statistic else NA }, error = function(e) NA)
+  AD_lnorm <- tryCatch({ if (!is.null(fit_lnorm)) ad.test(data, "plnorm", fit_lnorm$estimate[1], fit_lnorm$estimate[2])$statistic else NA }, error = function(e) NA)
+
+  return(list(sev_value = NA, best_fit = best_fit, AIC_norm = AIC_norm, AIC_gamma = AIC_gamma, AIC_lnorm = AIC_lnorm, 
+              LogL_norm = LogL_norm, LogL_gamma = LogL_gamma, LogL_lnorm = LogL_lnorm,
+              AD_norm = AD_norm, AD_gamma = AD_gamma, AD_lnorm = AD_lnorm))
+}
+
+
+# Process SEV and add AIC and model fit metrics
+process_nutrient_data_sev <- function(nutrient_data, ear_data) {
+  results <- data.frame()
+  
+  for (name in names(nutrient_data)) {
+    if (is.null(nutrient_data[[name]])) {
+      print(paste("No data found for nutrient:", name))
+      next
+    }
+    
+    data <- nutrient_data[[name]]$data$HI %>% unlist()
+    nutrient <- nutrient_data[[name]]$nutrient
+    age_group <- nutrient_data[[name]]$age_group
+    
+    ear_value <- case_when(
+      age_group == "6" ~ ear_data %>% filter(age == 6) %>% pull(!!sym(nutrient)),
+      age_group == "7-10" ~ ear_data %>% filter(age == 8) %>% pull(!!sym(nutrient)),
+      age_group == "11-12" ~ ear_data %>% filter(age == 11) %>% pull(!!sym(nutrient)),
+      age_group == "6-12" ~ ear_data %>% filter(age == 8) %>% pull(!!sym(nutrient)),
+      TRUE ~ NA_real_
+    )
+    
+    if (length(ear_value) == 0) {
+      print(paste("No EAR value found for nutrient:", nutrient, "and age group:", age_group))
+      next
+    }
+    
+    if (length(data) <= 1) {
+      print(paste("Not enough data for nutrient:", nutrient, "and age group:", age_group))
+      next
+    }
+    
+    print(paste("Processing SEV for nutrient:", nutrient, "and age group:", age_group))
+    
+    sev_result <- fit_distributions_and_calculate_sev(data, nutrient, ear_value)
+    
+    if (!is.null(sev_result$sev_value)) {
+      results <- rbind(results, data.frame(
+        Nutrient = nutrient, 
+        age_group = age_group, 
+        SEV = sev_result$sev_value, 
+        best_fit = sev_result$best_fit,
+        AIC_norm = sev_result$AIC_norm,
+        AIC_gamma = sev_result$AIC_gamma,
+        AIC_lnorm = sev_result$AIC_lnorm,
+        LogL_norm = sev_result$LogL_norm,
+        LogL_gamma = sev_result$LogL_gamma,
+        LogL_lnorm = sev_result$LogL_lnorm,
+        AD_norm = sev_result$AD_norm,
+        AD_gamma = sev_result$AD_gamma,
+        AD_lnorm = sev_result$AD_lnorm
+      ))
+    }
+  }
+  
+  return(results)
+}
+
+# Process SEV and save results with AIC, LogL, AD test
+sev_results_with_fit <- process_nutrient_data_sev(nutrient_data, EAR_men)
+write_xlsx(sev_results_with_fit, file.path(output_directory_path, "SEV_results_with_model_fit.xlsx"))
+
+
+
+##step 3
+
+# Create descriptive statistics datasets
+create_descriptive_stats <- function(data, nutrient, age_group) {
+  data.frame(
+    Nutrient = nutrient,
+    Age_Group = age_group,
+    Mean = mean(data),
+    SD = sd(data),
+    Percentile_10 = quantile(data, 0.10),
+    Percentile_25 = quantile(data, 0.25),
+    Median = quantile(data, 0.50),
+    Percentile_75 = quantile(data, 0.75),
+    Percentile_90 = quantile(data, 0.90),
+    Skewness = e1071::skewness(data),
+    CV = (sd(data) / mean(data)) * 100
+  )
+}
+
+# Combine descriptive statistics for all datasets
+descriptive_stats_list <- lapply(names(nutrient_data), function(name) {
+  if (is.null(nutrient_data[[name]])) {
+    return(NULL)
+  }
+  data <- nutrient_data[[name]]$data$HI %>% unlist()
+  nutrient <- nutrient_data[[name]]$nutrient
+  age_group <- nutrient_data[[name]]$age_group
+  create_descriptive_stats(data, nutrient, age_group)
+})
+
+# Combine all descriptive statistics into one data frame
+combined_descriptive_stats <- bind_rows(descriptive_stats_list) %>% distinct(Nutrient, Age_Group, .keep_all = TRUE)
+
+# Define the desired order for nutrients
+desired_nutrient_order <- c("calcium", "iron", "zinc", "rae", "thiamin", "riboflavin", "niacin", 
+                            "vitb6", "folate", "vitb12", "vitc")
+
+# Ensure the correct order of age groups for each nutrient
+combined_descriptive_stats <- combined_descriptive_stats %>%
+  mutate(
+    Age_Group = factor(Age_Group, levels = c("6-12", "6", "7-10", "11-12")),
+    Nutrient = factor(Nutrient, levels = desired_nutrient_order)
+  ) %>%
+  arrange(Nutrient, Age_Group)
+
+# Save the combined summary to an Excel file
+write_xlsx(combined_descriptive_stats, file.path(output_directory_path, "SEV_descriptive.xlsx"))
+
+
+## weighted 6-12 group
+
+# Define file path for the SEV results
+sev_results_file_path <- "C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/M2_cfmethods/SPADE_NutriR/f.spade/SEV_results.xlsx"
+
+# Load SEV results
+sev_results <- read_excel(sev_results_file_path)
+
+# Define sample sizes
+n_6 <- 49
+n_710 <- 264
+n_1112 <- 130
+
+# Calculate weighted average SEV for each nutrient
+weighted_sev <- sev_results %>%
+  filter(age_group %in% c("6", "7-10", "11-12")) %>%
+  group_by(Nutrient) %>%
+  summarize(
+    SEV_6 = SEV[age_group == "6"],
+    SEV_710 = SEV[age_group == "7-10"],
+    SEV_1112 = SEV[age_group == "11-12"],
+    weighted_SEV = (SEV_6 * n_6 + SEV_710 * n_710 + SEV_1112 * n_1112) / (n_6 + n_710 + n_1112)
+  ) %>%
+  dplyr::select(Nutrient, weighted_SEV)
+
+# Add the weighted SEV to the original SEV results table
+sev_results_weighted <- weighted_sev %>%
+  mutate(age_group = "6-12_w") %>%
+  rename(SEV = weighted_SEV)
+
+# Combine the original SEV results with the new weighted SEV results
+sev_results_combined <- bind_rows(sev_results, sev_results_weighted)
+
+
+# Save the combined SEV results to a new Excel file
+output_file_path <- "C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/M2_cfmethods/SPADE_NutriR/f.spade/SEV_results_combined.xlsx"
+write_xlsx(sev_results_combined, output_file_path)
+
+# Print the combined SEV results
+print(sev_results_combined)
+
+
+```
+
+
+
+```{r SAC summary table with all 6 methods, echo=FALSE, results='hide', warning=FALSE, message=FALSE} 
+
+#1. all nutrients SAC with age/sex 
+
+# Load necessary packages
+required_packages <- c("tidyverse", "readxl", "writexl")
+
+for (package in required_packages) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+# Set your working directory
+setwd("C:/Users/aylink01/OneDrive - FrieslandCampina/AfricaNutrition/Project 2 cross sectional survey/Results/Sharing/")
+
+
+# Define file paths and folder names
+file_paths <- list(
+  "oneday_CO" = read.xlsx("oneday_CO/EAR_Prevalence_by_Age_Group.xlsx", sheet=1),
+  "oneday_PA" = read.xlsx("oneday_PA/PI_by_Age_Group.xlsx",sheet=1),
+  "oneday_NutriR" = read.xlsx("oneday_NutriR/sev_results.xlsx",sheet=1),
+  "SPADE_CO" = read.xlsx ("SPADE_CO/f.spade/EAR_Prevalence_by_Age_Group.xlsx",sheet=1),
+  "SPADE_PA" = read.xlsx (" SPADE_PA/f.spade/Combined_PI_by_Age_Group.xlsx",sheet=1),
+  "SPADE_NutriR" = read.xlsx ("SPADE_NutriR/f.spade/SEV_results_combined.xlsx",sheet=1)
+)
+
+# Initialize an empty list to store data frames
+df_list <- list()
+
+# Loop through the file paths to read each file, add the folder name, and store in the list
+for (folder in names(file_paths)) {
+  file_path <- file_paths[[folder]]
+  df <- read_excel(file_path) %>%
+    rename(Nutrient = 1, age_group = 2, `%IA` = 3) %>%
+    mutate(folder = folder)
+  
+  # Convert Nutrient names to lowercase for SPADE_PA
+  if (folder == "SPADE_PA") {
+    df <- df %>% mutate(Nutrient = tolower(Nutrient))
+  }
+  
+  df_list[[folder]] <- df
+}
+
+# Combine all data frames into one
+combined_df <- bind_rows(df_list)
+
+# Save the combined data frame to a new Excel file
+combined_sev_file_path <- read.xlsx ("Combined_SEV_results.xlsx", sheet=1)
+write_xlsx(combined_df, combined_sev_file_path)
+
+# Print the combined data frame to ensure all data is present
+print("Combined Data Frame:")
+print(combined_df)
+
+## Differences between methods
+
+# Load the combined SEV results
+combined_sev_results <- read_excel(combined_sev_file_path)
+
+# Rename methods
+method_mapping <- c(
+  "oneday_CO" = "Method 1",
+  "oneday_PA" = "Method 2",
+  "oneday_NutriR" = "Method 3",
+  "SPADE_CO" = "Method 4",
+  "SPADE_PA" = "Method 5",
+  "SPADE_NutriR" = "Method 6"
+)
+
+combined_sev_results <- combined_sev_results %>%
+  mutate(folder = recode(folder, !!!method_mapping))
+
+# Ensure that SPADE_PA data is present
+print("Checking if 'SPADE_PA' (Method 5) data is present in the dataset:")
+spade_pa_data <- combined_sev_results %>% filter(folder == "Method 5")
+print(spade_pa_data)
+
+
+combined_sev_results$`%IA` <- as.numeric(combined_sev_results$`%IA`)
+
+# Pivot the data to wide format for difference calculation
+wide_sev_results <- combined_sev_results %>%
+  pivot_wider(names_from = folder, values_from = `%IA`)
+
+# Debug: Check if the wide format data has the correct columns
+print("Columns in the wide format data:")
+print(colnames(wide_sev_results))
+
+
+# Check the first few rows of wide_sev_results to ensure data is correct
+print("First few rows of wide_sev_results:")
+print(head(wide_sev_results))
+
+# Convert columns to numeric, handle "NULL" or "NA" values
+#wide_sev_results$`%IA` <- as.numeric(gsub("%", "", wide_sev_results$`%IA`))
+wide_sev_results$`Method 1` <- as.numeric(as.character(wide_sev_results$`Method 1`))
+wide_sev_results$`Method 2` <- as.numeric(as.character(wide_sev_results$`Method 2`))
+wide_sev_results$`Method 3` <- as.numeric(as.character(wide_sev_results$`Method 3`))
+wide_sev_results$`Method 4` <- as.numeric(as.character(wide_sev_results$`Method 4`))
+wide_sev_results$`Method 5` <- as.numeric(as.character(wide_sev_results$`Method 5`))
+wide_sev_results$`Method 6` <- as.numeric(as.character(wide_sev_results$`Method 6`))
+
+
+# Calculate absolute differences between each pair of methods
+difference_results <- wide_sev_results %>%
+  mutate(
+    `1 vs 2` = ifelse(is.na(`Method 1`) | is.na(`Method 2`), NA, abs(`Method 1` - `Method 2`)),
+    `1 vs 3` = ifelse(is.na(`Method 1`) | is.na(`Method 3`), NA, abs(`Method 1` - `Method 3`)),
+    `1 vs 4` = ifelse(is.na(`Method 1`) | is.na(`Method 4`), NA, abs(`Method 1` - `Method 4`)),
+    `1 vs 5` = ifelse(is.na(`Method 1`) | is.na(`Method 5`), NA, abs(`Method 1` - `Method 5`)),
+    `1 vs 6` = ifelse(is.na(`Method 1`) | is.na(`Method 6`), NA, abs(`Method 1` - `Method 6`)),
+    `2 vs 3` = ifelse(is.na(`Method 2`) | is.na(`Method 3`), NA, abs(`Method 2` - `Method 3`)),
+    `2 vs 4` = ifelse(is.na(`Method 2`) | is.na(`Method 4`), NA, abs(`Method 2` - `Method 4`)),
+    `2 vs 5` = ifelse(is.na(`Method 2`) | is.na(`Method 5`), NA, abs(`Method 2` - `Method 5`)),
+    `2 vs 6` = ifelse(is.na(`Method 2`) | is.na(`Method 6`), NA, abs(`Method 2` - `Method 6`)),
+    `3 vs 4` = ifelse(is.na(`Method 3`) | is.na(`Method 4`), NA, abs(`Method 3` - `Method 4`)),
+    `3 vs 5` = ifelse(is.na(`Method 3`) | is.na(`Method 5`), NA, abs(`Method 3` - `Method 5`)),
+    `3 vs 6` = ifelse(is.na(`Method 3`) | is.na(`Method 6`), NA, abs(`Method 3` - `Method 6`)),
+    `4 vs 5` = ifelse(is.na(`Method 4`) | is.na(`Method 5`), NA, abs(`Method 4` - `Method 5`)),
+    `4 vs 6` = ifelse(is.na(`Method 4`) | is.na(`Method 6`), NA, abs(`Method 4` - `Method 6`)),
+    `5 vs 6` = ifelse(is.na(`Method 5`) | is.na(`Method 6`), NA, abs(`Method 5` - `Method 6`))
+  )
+
+# Select the relevant columns
+final_difference_results <- difference_results %>%
+  dplyr::select(Nutrient, age_group, starts_with("1 vs"), starts_with("2 vs"), starts_with("3 vs"), starts_with("4 vs"), starts_with("5 vs"))
+
+# Save the difference results to a new Excel file
+output_file_path <- "comparison_methods.xlsx"
+write_xlsx(final_difference_results, output_file_path)
+
+# Print the final difference results
+print("Final Difference Results:")
+print(final_difference_results)
+
+##average and range of differences between methods
+
+# Select the relevant columns
+final_difference_results <- difference_results %>%
+  dplyr::select(Nutrient, age_group, starts_with("1 vs"), starts_with("2 vs"), starts_with("3 vs"), starts_with("4 vs"), starts_with("5 vs"))
+
+# Calculate average and range of differences
+summary_difference_results <- final_difference_results %>%
+  pivot_longer(cols = starts_with("1 vs"):starts_with("5 vs"), names_to = "comparison", values_to = "difference") %>%
+  group_by(age_group, comparison) %>%
+  summarise(
+    avg_difference = mean(difference, na.rm = TRUE),
+    min_difference = min(difference, na.rm = TRUE),
+    max_difference = max(difference, na.rm = TRUE)
+  )
+
+# Save the summary results to a new Excel file
+summary_output_file_path <- "summary_comparison_methods.xlsx"
+write_xlsx(summary_difference_results, summary_output_file_path)
+
+# Print the summary difference results
+print("Summary Difference Results:")
+print(summary_difference_results)
+
+```
+
+
+
+```{r SAC %IA graphs, echo=FALSE, results='hide', warning=FALSE, message=FALSE} 
+
+
+# Load necessary packages
+required_packages <- c("tidyverse", "readxl", "writexl", "ggplot2", "gridExtra", "dplyr", "grid", "gtable")
+
+for (package in required_packages) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+# Define file paths
+combined_sev_file_path <- "Combined_SEV_results.xlsx"
+output_directory_path <- "graphs"
+
+# Load the combined SEV results
+combined_sev_results <- read_excel(combined_sev_file_path)
+
+# Define the order of nutrients
+nutrient_order <- c("calcium", "riboflavin", "zinc", "rae", "folate", "vitb6", "vitc", "iron", "thiamin", "niacin", "vitb12")
+
+# Define the display names for specific nutrients
+display_names <- c(
+  "vitb6" = "vitamin B6",
+  "vitc" = "vitamin C",
+  "rae" = "vitamin A",
+  "vitb12" = "vitamin B12"
+)
+
+# Define the order of the 'folder' levels
+folder_levels <- c("oneday_CO", "oneday_PA", "oneday_NutriR", "SPADE_CO", "SPADE_PA", "SPADE_NutriR")
+
+# Define the colors for each folder
+folder_colors <- c("oneday_CO" = "blue", "oneday_PA" = "red", "oneday_NutriR" = "green", "SPADE_CO" = "purple", "SPADE_PA" = "pink", "SPADE_NutriR" = "orange")
+
+# Ensure the folder column is a factor with specified levels for the graph
+combined_sev_results$folder <- factor(combined_sev_results$folder, levels = folder_levels)
+
+# Filter for the age group 6-12_w and reorder nutrients and folders for the graph
+combined_sev_6_12_w_graph <- combined_sev_results %>%
+  filter(age_group == "6-12_w" & Nutrient %in% nutrient_order) %>%
+  mutate(Nutrient = factor(Nutrient, levels = nutrient_order)) %>%
+  arrange(Nutrient, folder)
+
+# Create the first bar graph with reduced width
+p1 <- ggplot(combined_sev_6_12_w_graph, aes(x = Nutrient, y = `%IA`, fill = folder)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Percentage of Nutrient Inadequacy (6-12_w)", y = "% Inadequacy") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        plot.background = element_rect(fill = "white", color = "white"),
+        legend.position = "none",
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),  # Remove x-axis text
+        axis.ticks.x = element_blank(), # Remove x-axis ticks
+        plot.margin = unit(c(1, 1, -2, 1), "lines")) +  # Adjust plot margins to move the graph to the left and closer to the table
+  scale_fill_manual(values = folder_colors) +
+  scale_x_discrete(limits = nutrient_order) +
+  scale_y_continuous()
+
+# Generate the table without treating the folder as a factor
+combined_sev_6_12_w_table <- combined_sev_results %>%
+  filter(age_group == "6-12_w" & Nutrient %in% nutrient_order) %>%
+  arrange(Nutrient, folder)
+
+table1 <- combined_sev_6_12_w_table %>%
+  dplyr::select(Nutrient, folder, `%IA`) %>%
+  pivot_wider(names_from = Nutrient, values_from = `%IA`) %>%
+  arrange(match(folder, folder_levels)) %>%
+  mutate(across(where(is.numeric), round)) %>%  # Convert to whole numbers
+  mutate(Method = recode(folder,
+                         "oneday_CO" = "1",
+                         "oneday_PA" = "2",
+                         "oneday_NutriR" = "3",
+                         "SPADE_CO" = "4",
+                         "SPADE_PA" = "5",
+                         "SPADE_NutriR" = "6"),
+         Color = recode(folder,
+                        "oneday_CO" = "blue",
+                        "oneday_PA" = "red",
+                        "oneday_NutriR" = "green",
+                        "SPADE_CO" = "purple",
+                        "SPADE_PA" = "pink",
+                        "SPADE_NutriR" = "orange")) %>%
+  dplyr::select(Color, Method, all_of(nutrient_order))
+
+# Convert the Method column to a character to avoid issues with HTML rendering
+table1$Method <- as.character(table1$Method)
+table1$Color <- as.character(table1$Color)
+
+# Rename specific nutrient columns for display
+colnames(table1) <- colnames(table1) %>%
+  recode(!!!display_names)
+
+# Convert to data frame to avoid issues with tableGrob
+table1 <- as.data.frame(table1)
+
+# Create a custom theme for the table
+custom_theme <- ttheme_minimal(
+  base_size = 10, 
+  core = list(
+    fg_params = list(fontface = "plain")  # Unbold the headers
+  ),  
+  colhead = list(
+    fg_params = list(fontface = "plain")  # Unbold the column headers
+  )
+)
+
+# Create a table grob with custom theme
+table_grob <- tableGrob(table1, rows = NULL, theme = custom_theme)
+
+# Function to add color to cells in the Color column
+for (i in 1:nrow(table1)) {
+  color_rect <- rectGrob(gp = gpar(fill = table1$Color[i], col = NA))
+  table_grob <- gtable_add_grob(table_grob, color_rect, t = i + 1, l = 1, b = i + 1, r = 1)
+}
+
+# Manually adjust the column widths
+table_grob$widths[1] <- unit(0.02, "npc")  # Color column
+table_grob$widths[2] <- unit(0.04, "npc")  # Method column
+table_grob$widths[3] <- unit(0.08, "npc")  # Calcium column
+table_grob$widths[4] <- unit(0.08, "npc")  # Riboflavin column
+table_grob$widths[5] <- unit(0.08, "npc")  # Zinc column
+table_grob$widths[6] <- unit(0.08, "npc")  # Folate column
+table_grob$widths[7] <- unit(0.08, "npc")  # VitB6 column
+table_grob$widths[8] <- unit(0.08, "npc")  # VitC column
+table_grob$widths[9] <- unit(0.08, "npc")  # RAE column
+table_grob$widths[10] <- unit(0.08, "npc") # Iron column
+table_grob$widths[11] <- unit(0.08, "npc") # Thiamin column
+table_grob$widths[12] <- unit(0.08, "npc") # Niacin column
+table_grob$widths[13] <- unit(0.08, "npc") # VitB12 column
+
+# Adjust the plot width to align the table with the y-axis
+p1 <- p1 + theme(plot.margin = unit(c(1, 1, -2, 3), "lines")) # Adjust the last value to move the plot to the left or right
+
+table_grob$grobs[[1]]$gp <- gpar(col = "white")
+
+# Combine the plot and the table
+combined_plot1 <- grid.arrange(p1, table_grob, ncol = 1, heights = c(4, 1))
+
+# Save the graph and table as an image
+ggsave(filename = "graph1.png", plot = combined_plot1, path = output_directory_path, width = 12, height = 10, dpi = 300)
+
+
+
+
+#GRAPH 2
+##top row plus bottom 2 rows
+
+# Load necessary packages
+required_packages <- c("tidyverse", "readxl", "writexl", "ggplot2", "gridExtra", "dplyr", "grid", "gtable")
+
+for (package in required_packages) {
+  if (!require(package, character.only = TRUE)) {
+    install.packages(package, dependencies = TRUE)
+  }
+  library(package, character.only = TRUE)
+}
+
+# Define file paths
+comparison_file_path <- "comparison_methods.xlsx"
+output_directory_path <- "graphs"
+
+# Load the comparison results
+comparison_results <- read_excel(comparison_file_path)
+
+# Filter for the age group 6-12_w and exclude Vitamin D
+comparison_6_12_w <- comparison_results %>%
+  filter(age_group == "6-12_w" & Nutrient != "vitd")
+
+# Pivot data to long format for ggplot
+comparison_6_12_w_long <- comparison_results %>%
+  filter(age_group == "6-12_w" & Nutrient != "vitd") %>%
+  pivot_longer(cols = starts_with("1 vs"):starts_with("5 vs"), names_to = "comparison", values_to = "difference")
+
+# Define the order of comparisons
+comparison_order <- c("1 vs 4", "2 vs 5", "3 vs 6", "1 vs 2", "4 vs 5", "1 vs 3", "4 vs 6", "2 vs 3", "5 vs 6")
+
+# Filter to include only the specified comparisons
+comparison_6_12_w_long <- comparison_6_12_w_long %>%
+  filter(comparison %in% comparison_order)
+
+# Convert comparison to a factor to maintain the order
+comparison_6_12_w_long <- comparison_6_12_w_long %>%
+  mutate(comparison = factor(comparison, levels = comparison_order))
+
+# Sort nutrients by the sum of differences from largest to smallest
+nutrient_order <- comparison_6_12_w_long %>%
+  group_by(Nutrient) %>%
+  summarise(total_difference = sum(difference, na.rm = TRUE)) %>%
+  arrange(desc(total_difference)) %>%
+  pull(Nutrient)
+
+# Convert Nutrient to a factor to maintain the order
+comparison_6_12_w_long <- comparison_6_12_w_long %>%
+  mutate(Nutrient = factor(Nutrient, levels = nutrient_order))
+
+# Rename the nutrients
+nutrient_names <- c("calcium" = "Calcium", "riboflavin" = "Riboflavin", "zinc" = "Zinc", "folate" = "Folate", 
+                    "vitb6" = "Vitamin B6", "vitc" = "Vitamin C", "rae" = "Vitamin A", "iron" = "Iron", 
+                    "thiamin" = "Thiamin", "niacin" = "Niacin", "vitb12" = "Vitamin B12")
+
+comparison_6_12_w_long <- comparison_6_12_w_long %>%
+  mutate(Nutrient = recode(Nutrient, !!!nutrient_names))
+
+# Define the colors for each nutrient
+nutrient_colors <- c("Thiamin" = "red", "Vitamin C" = "orange", "Niacin" = "yellow", "Folate" = "green", 
+                     "Zinc" = "blue", "Vitamin B6" = "purple", "Riboflavin" = "pink", "Iron" = "cyan", 
+                     "Vitamin B12" = "magenta", "Vitamin A" = "gray", "Calcium" = "lightblue")
+
+# Create the second bar graph
+p2 <- ggplot(comparison_6_12_w_long, aes(x = comparison, y = difference, fill = Nutrient)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Difference in % Inadequacy between Methods (6-12_w)", x = "Methods cf.", y = "Difference in % Inadequacy") +
+  theme_minimal() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+        plot.background = element_rect(fill = "white", color = "white"),
+        legend.position = "none",  # Remove the legend
+        axis.title.x = element_blank(),  # Ensure x-axis title is visible
+        axis.text.x = element_blank(),  # Remove x-axis text
+        axis.ticks.x = element_blank(),  # Remove x-axis ticks
+        plot.margin = unit(c(1, 1, -2, 5), "lines")) +  # Adjust plot margins to move the graph to the left or right
+  scale_fill_manual(values = nutrient_colors) +
+  scale_y_continuous(limits = c(0, 30), breaks = seq(0, 30, by = 5))  # Set the y-axis limits to go from 0 to 25 with 5 unit increments
+
+# Create the summary table
+summary_table <- comparison_6_12_w %>%
+  dplyr::select(Nutrient, all_of(comparison_order)) %>%
+  arrange(match(Nutrient, nutrient_order)) %>%
+  mutate(across(where(is.numeric), ~ round(.x, 1)))  # Convert numeric columns to whole numbers
+
+# Rename the nutrients in the summary table
+summary_table <- summary_table %>%
+  mutate(Nutrient = recode(Nutrient, !!!nutrient_names))
+
+# Create a custom theme for the table
+custom_theme <- ttheme_minimal(base_size = 10, 
+                               core = list(fg_params = list(fontface = "plain")),  # Unbold the headers
+                               colhead = list(fg_params = list(fontface = "plain")))  # Unbold the column headers
+
+# Create a table grob with custom theme
+table_grob <- tableGrob(summary_table, rows = NULL, theme = custom_theme)
+
+# Add blank columns to the left to shift the table
+num_blank_cols <- 1  # Adjust this value to shift the table left or right
+blank_width <- unit(0.02, "npc")
+for (i in seq_len(num_blank_cols)) {
+  table_grob <- gtable_add_cols(table_grob, widths = blank_width, pos = 0)
+}
+
+# Manually adjust the column widths
+# You can manually adjust these values to fit your needs
+table_grob$widths[num_blank_cols + 1] <- unit(0.08, "npc")  # Nutrient column
+for (i in seq_len(length(comparison_order))) {
+  table_grob$widths[num_blank_cols + 1 + i] <- unit(0.095, "npc")  # Comparison columns
+}
+
+# Reduce the height of the table rows
+table_grob$heights <- unit(rep(0.8, length(table_grob$heights)), "lines")  # Adjust the value as needed
+
+# Add color cells to the left of the Nutrient column
+color_grobs <- lapply(nutrient_colors[summary_table$Nutrient], function(color) rectGrob(gp = gpar(fill = color, col = NA)))
+for (i in seq_along(color_grobs)) {
+  table_grob <- gtable_add_grob(table_grob, color_grobs[[i]], t = i + 1, l = 1, r = 1)
+}
+
+# Remove text from the Color column
+for (i in seq_len(nrow(summary_table))) {
+  table_grob$grobs[table_grob$layout$t == i + 1 & table_grob$layout$l == 2][[1]]$label <- summary_table$Nutrient[i]
+}
+
+# Add a line under the first row in the table
+separator <- segmentsGrob(x0 = unit(0, "npc"), y0 = unit(1, "npc"), x1 = unit(1, "npc"), y1 = unit(1, "npc"),
+                          gp = gpar(lwd = 1, col = "black"))
+table_grob <- gtable_add_grob(table_grob, separator, t = 2, b = 2, l = 3, r = ncol(table_grob))
+
+# Create the header row manually
+header_texts <- c("", "(1) One-day vs Usual intake \nEAR cut-point, PA and Nutri-R", 
+                  "(2) EAR cut-point vs PA\nOne-day and Usual intake", 
+                  "(3) Nutri-R vs EAR cut-point\nOne-day and Usual intake", 
+                  "(4) Nutri-R vs PA\nOne-day and Usual intake")
+
+header_grobs <- list(
+  nullGrob(),
+  textGrob(header_texts[2], gp = gpar(fontface = "bold", cex = 0.7), just = "center"),
+  textGrob(header_texts[3], gp = gpar(fontface = "bold", cex = 0.7), just = "center"),
+  textGrob(header_texts[4], gp = gpar(fontface = "bold", cex = 0.7), just = "center"),
+  textGrob(header_texts[5], gp = gpar(fontface = "bold", cex = 0.7), just = "center")
+)
+
+# Create a new header gtable with increased height
+header_gtable <- gtable(widths = table_grob$widths, heights = unit(2, "lines"))  # Increase the height of the header
+header_gtable <- gtable_add_grob(header_gtable, header_grobs[[1]], t = 1, l = 1, r = 2)
+header_gtable <- gtable_add_grob(header_gtable, header_grobs[[2]], t = 1, l = 3, r = 5)
+header_gtable <- gtable_add_grob(header_gtable, header_grobs[[3]], t = 1, l = 6, r = 7)
+header_gtable <- gtable_add_grob(header_gtable, header_grobs[[4]], t = 1, l = 8, r = 9)
+header_gtable <- gtable_add_grob(header_gtable, header_grobs[[5]], t = 1, l = 10, r = 11)
+
+# Combine the header and the table
+combined_table <- gtable_rbind(header_gtable, table_grob)
+
+# Print the combined table dimensions
+print(paste("Combined table dimensions:", dim(combined_table)))
+
+# Calculate summary statistics
+summary_stats <- comparison_6_12_w_long %>%
+  group_by(comparison) %>%
+  summarise(
+    avg_difference = mean(difference, na.rm = TRUE),
+    min_difference = min(difference, na.rm = TRUE),
+    max_difference = max(difference, na.rm = TRUE)
+  )
+
+# Format the average differences and ranges
+summary_stats <- summary_stats %>%
+  mutate(
+    avg_difference = round(avg_difference, 1),
+    min_difference = round(min_difference, 1),
+    max_difference = round(max_difference, 1)
+  )
+
+# Create the average summary table
+avg_summary_table <- summary_stats %>%
+  dplyr::select(comparison, avg_difference) %>%
+  pivot_wider(names_from = comparison, values_from = avg_difference)
+
+# Create the range summary table
+range_summary_table <- summary_stats %>%
+  mutate(range_difference = paste0(min_difference, "-", max_difference)) %>%
+  dplyr::select(comparison, range_difference) %>%
+  pivot_wider(names_from = comparison, values_from = range_difference)
+
+# Convert numerical columns to character for binding
+avg_summary_table <- avg_summary_table %>% mutate(across(everything(), as.character))
+range_summary_table <- range_summary_table %>% mutate(across(everything(), as.character))
+
+# Combine the average and range tables
+summary_table <- bind_rows(
+  tibble(metric = "Average (%)") %>% bind_cols(avg_summary_table),
+  tibble(metric = "Range (%)") %>% bind_cols(range_summary_table)
+)
+
+# Remove the heading in the first column "metric"
+colnames(summary_table)[1] <- ""
+
+# Create a custom theme for the table
+custom_theme <- ttheme_minimal(base_size = 10, 
+                               core = list(fg_params = list(fontface = "plain")),
+                               colhead = list(fg_params = list(fontface = "bold")))
+
+# Create a table grob with custom theme
+summary_grob <- tableGrob(summary_table, rows = NULL, theme = custom_theme)
+
+# Add a blank column to the summary_grob
+summary_grob <- gtable_add_cols(summary_grob, widths = unit(0.08, "npc"), pos = 0)
+blank_col <- replicate(nrow(summary_grob) - 1, nullGrob(), simplify = FALSE)
+summary_grob <- gtable_add_grob(summary_grob, grobs = blank_col, t = 2:nrow(summary_grob), l = 1)
+
+# Add a line under the first row in the summary table
+separator <- segmentsGrob(x0 = unit(0, "npc"), y0 = unit(1, "npc"), x1 = unit(1, "npc"), y1 = unit(1, "npc"),
+                          gp = gpar(lwd = 1, col = "black"))
+summary_grob <- gtable_add_grob(summary_grob, separator, t = 2, b = 2, l = 1, r = ncol(summary_grob))
+
+# Remove the header from summary_grob
+summary_grob <- summary_grob[2:nrow(summary_grob)]
+
+# Adjust widths of summary_grob to match combined_table
+summary_grob$widths <- combined_table$widths
+
+# Add the summary rows to the combined table
+combined_table <- gtable_rbind(combined_table, summary_grob)
+
+# Combine the plot and the table
+combined_plot2 <- grid.arrange(p2, combined_table, ncol = 1, heights = c(3.5, 2))
+
+# Save the second graph and table as an image with adjusted dimensions
+ggsave(filename = "graph2_combined.png", plot = combined_plot2, path = output_directory_path, width = 10, height = 9, dpi = 300)
+
+
+
+```
